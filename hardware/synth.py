@@ -156,15 +156,22 @@ def timing_result(target, top):
 
 def main():
     """两个独立目标并行执行，任何失败都会保留日志并返回非零状态。"""
+    global OUT
     parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--output',type=Path,help='独立结果目录，避免覆盖其他架构快照')
     parser.add_argument('--scope',choices=['core','block','all'],default='all')
     parser.add_argument('--version',choices=[*VERSIONS,'all'],default='all')
     parser.add_argument('--reuse-mapped',action='store_true',help='复用当前RTL已经映射的网表，只重跑STA')
     args=parser.parse_args()
+    if args.output: OUT=args.output.resolve()
     areas={name:float(area) for name,area in re.findall(r'cell\s*\(([^)]+)\)\s*\{.*?\barea\s*:\s*([0-9.eE+-]+)',LIB.read_text(),re.S)}
     scopes=['core','block'] if args.scope=='all' else [args.scope]
     versions=list(VERSIONS) if args.version=='all' else [args.version]
     OUT.mkdir(parents=True,exist_ok=True)
+    manifest={str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest()
+              for p in sorted((ROOT/'hardware/rtl').rglob('*.sv'))}
+    manifest['hardware/synth/kwt_core_synth.sv']=hashlib.sha256((ROOT/'hardware/synth/kwt_core_synth.sv').read_bytes()).hexdigest()
+    (OUT/'source_manifest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n')
     results=[]; failures=[]
     with ThreadPoolExecutor(max_workers=2) as pool:
         jobs={pool.submit(measure,s,v,areas,args.reuse_mapped):(s,v) for s in scopes for v in versions}

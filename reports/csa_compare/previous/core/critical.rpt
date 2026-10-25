@@ -1,0 +1,72 @@
+Startpoint: rst_n (input port clocked by clk)
+Endpoint: u124458 (recovery check against rising-edge clock clk)
+Path Group: **async_default**
+Path Type: max
+
+        Cap        Slew       Delay        Time   Description
+---------------------------------------------------------------------------------------
+               0.100000    0.000000    0.000000   clock clk (rise edge)
+                           0.000000    0.000000   clock network delay (ideal)
+                           0.500000    0.500000 ^ input external delay
+  22.765497    0.100000    0.000000    0.500000 ^ rst_n (in)
+               0.100000    0.000000    0.500000 ^ u124458/SN (DFFSQX2H7L)
+                                       0.500000   data arrival time
+
+               0.100000    6.666667    6.666667   clock clk (rise edge)
+                           0.000000    6.666667   clock network delay (ideal)
+                          -0.100000    6.566667   clock uncertainty
+                           0.000000    6.566667   clock reconvergence pessimism
+                                       6.566667 ^ u124458/CK (DFFSQX2H7L)
+                          -0.087030    6.479637   library recovery time
+                                       6.479637   data required time
+---------------------------------------------------------------------------------------
+                                       6.479637   data required time
+                                      -0.500000   data arrival time
+---------------------------------------------------------------------------------------
+                                       5.979637   slack (MET)
+
+
+Startpoint: u120969 (rising edge-triggered flip-flop clocked by clk)
+Endpoint: u120939 (rising edge-triggered flip-flop clocked by clk)
+Path Group: clk
+Path Type: max
+
+        Cap        Slew       Delay        Time   Description
+---------------------------------------------------------------------------------------
+               0.100000    0.000000    0.000000   clock clk (rise edge)
+                           0.000000    0.000000   clock network delay (ideal)
+               0.100000    0.000000    0.000000 ^ u120969/CK (DFFRQX2H7L)
+   0.007041    0.131146    0.233838    0.233838 ^ u120969/Q (DFFRQX2H7L)
+   0.002238    0.102653    0.096826    0.330664 v u24567/Y (NAND2X0P5H7L)
+   0.002246    0.086951    0.268959    0.599623 ^ u24590/Y (XOR3X0P5H7L)
+   0.002312    0.071610    0.314686    0.914309 v u24594/Y (XOR3X0P5H7L)
+   0.001524    0.062944    0.157898    1.072207 ^ u24613/Y (XOR2X0P5H7L)
+   0.002127    0.076385    0.258635    1.330842 ^ u24623/Y (XNOR3X0P7H7L)
+   0.001366    0.043165    0.047148    1.377990 v u24624/Y (NOR2X0P5H7L)
+   0.002791    0.205497    0.141176    1.519166 ^ u24626/Y (OAI21X0P5H7L)
+   0.002236    0.151530    0.162299    1.681465 v u24632/Y (AOAI211X0P5H7L)
+   0.002632    0.058127    0.178848    1.860313 v u24635/Y (AOA211X1P4H7L)
+   0.002144    0.253498    0.198393    2.058706 ^ u24641/Y (OAOI211X0P5H7L)
+   0.002768    0.138316    0.156937    2.215643 v u24645/Y (OAOI211X0P5H7L)
+   0.002811    0.310835    0.252994    2.468637 ^ u24652/Y (OAOI211X0P5H7L)
+   0.002039    0.079994    0.179063    2.647700 ^ u24655/Y (OAO211X0P5H7L)
+   0.001322    0.112286    0.105737    2.753437 v u24670/Y (AOAI211X0P5H7L)
+   0.000846    0.184699    0.161496    2.914933 ^ u107656/Y (OAI32X0P5H7L)
+   0.001004    0.035472    0.090962    3.005895 ^ u107657/Y (BUFX1P4H7L)
+               0.035472    0.000000    3.005895 ^ u120939/D (DFFRQX2H7L)
+                                       3.005895   data arrival time
+
+               0.100000    6.666667    6.666667   clock clk (rise edge)
+                           0.000000    6.666667   clock network delay (ideal)
+                          -0.100000    6.566667   clock uncertainty
+                           0.000000    6.566667   clock reconvergence pessimism
+                                       6.566667 ^ u120939/CK (DFFRQX2H7L)
+                          -0.049839    6.516828   library setup time
+                                       6.516828   data required time
+---------------------------------------------------------------------------------------
+                                       6.516828   data required time
+                                      -3.005895   data arrival time
+---------------------------------------------------------------------------------------
+                                       3.510933   slack (MET)
+
+

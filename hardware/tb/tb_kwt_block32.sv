@@ -39,7 +39,7 @@ module tb_kwt_block32 #(
     int steps=0,last_step_cycle=0; // 验证每个K向量均按固定间隔发射
     int block_start_cycle;          // 任务起点，用于交叉核对状态计数
     localparam int EXPECT_II=(ARCH==0)?4:((ARCH==1)?3:1); // 独立调度合同，不读取DUT参数
-    localparam int EXPECT_BLOCK=(ARCH==0)?4192:((ARCH==1)?3632:2736); // 16个8×8子块的约定拍数
+    localparam int EXPECT_BLOCK=(ARCH==0)?4192:((ARCH==1)?3632:2816); // 16个8×8子块的约定拍数
 
     // 按实际执行状态计数，并检查相邻K位置的发射间隔，零输入也必须遵守。
     always @(posedge clk) begin

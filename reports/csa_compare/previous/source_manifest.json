@@ -1,0 +1,16 @@
+{
+  "hardware/rtl/common/kwt_array_quad.sv": "cbd20e4425b467415f953cd789a791bf2ee6a46c421e92213c4999760afab1b7",
+  "hardware/rtl/common/kwt_block32.sv": "68f669d5d6fbbe922292865592bfd8257d0e7cb6cd4004183d5aad42b7910bb1",
+  "hardware/rtl/common/kwt_interfaces.sv": "e963404c3713c8d3408bf73ff3dc2fc1f5b07eae5d7b9f92ed02c8a4f9dc1f9e",
+  "hardware/rtl/common/kwt_mul.sv": "eaef96bd6dc4c4c2a5abf35c78f2ff2849bf7a0cfbfabc504bf5114615e4be7c",
+  "hardware/rtl/common/kwt_mul_column.sv": "d4b2a964e18d1925ab6d58a20cb7d15208eba5bb3fd3005a46872404d02d8b0b",
+  "hardware/rtl/common/kwt_quad4x4.sv": "f92980eccc9823827cb49905065834ffd41f2e797bec97c4eef7f940a6eb01f4",
+  "hardware/rtl/inside_csa/kwt_acc32.sv": "51ade65ebf38d24e1ec0ba878e16624cc9ee5e348e06a03fd953296447fd0a5c",
+  "hardware/rtl/inside_csa/kwt_csa32.sv": "998fa1133d81d78cafe5cd70eb92922e9ea4a7ab4c90bd55ca60ba6e0135181a",
+  "hardware/rtl/inside_csa/kwt_pe_csa.sv": "047947c318d192556259fbd9016e2e3a4f1735ab0ee45f7e4af767d2e50f9bb2",
+  "hardware/rtl/inside_traditional/kwt_pe_resident.sv": "d35b34427b0c060530b04d1deaf98daf115db72461eb92a168f4e28853c335af",
+  "hardware/rtl/outside/kwt_array_pipe.sv": "95a3c3ddbf0dc0d1548eb67d4fcd836fb12a495ed0f9647af6ff8ea5e478cf04",
+  "hardware/rtl/outside/kwt_column_pipe.sv": "82fa765b1562676d6c3d3604796f28b705dd2a96b52304dc2a3b74dc800f56eb",
+  "hardware/rtl/outside/kwt_pe_pipe.sv": "53ac39326e35ee8be85d95ee74c14e77e42a89f4b36fcacad8d247fe8447ceb7",
+  "hardware/synth/kwt_core_synth.sv": "265c1637721755d711fe004b953b3ba3e0648a7678221f22e03bca87354a942b"
+}

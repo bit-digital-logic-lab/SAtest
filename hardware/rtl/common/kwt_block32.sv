@@ -23,11 +23,11 @@ module kwt_block32 #(parameter int ARCH=0 // 0=阵列外加法，1=驻留传统�
         RUN,   // 连续提交32个K向量
         WAIT,  // 固定等待末向量的算术流水
         FLUSH, // 发出部分和排空命令
-        TAIL,  // 三压二固定五拍尾项收尾
+        TAIL,  // 三压二固定十拍尾项收尾
         STORE  // 固定64拍下载，写回C块
     } state_t;
     localparam int INPUT_II=(ARCH==0) ? 4 : ((ARCH==1) ? 3 : 1); // 三种架构的固定向量发射间隔。
-    localparam int TAIL_CYCLES=5; // flush后：补单项、接收sum、发carry、接收carry、提交carry。
+    localparam int TAIL_CYCLES=10; // flush后：两块交替四行共8拍，加2拍固定收尾余量。
     localparam int LAST_WAIT=(ARCH==0) ? 8 : ((ARCH==1) ? 4 : 5); // 末向量发射后到加法提交的固定拍数。
     logic [1:0] issue_phase;          // 输入节拍相位，只由固定计数推进
     logic [3:0] wait_count;           // 末向量等待/尾项收尾的固定计数
@@ -81,7 +81,7 @@ module kwt_block32 #(parameter int ARCH=0 // 0=阵列外加法，1=驻留传统�
             c_mem[c_write_addr]<=array_bus.out_data;
     end
 
-    // 固定日程：上传64拍→32组向量按II发射→末向量等待→flush→CSA五拍收尾→下载64拍。
+    // 固定日程：上传64拍→32组向量按II发射→末向量等待→flush→CSA十拍收尾→下载64拍。
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin // 只复位控制，三个矩阵块随后由外部显式装载。
             state<=IDLE; tile_i<=0; tile_j<=0; slot<=0; k<=0;
@@ -110,10 +110,10 @@ module kwt_block32 #(parameter int ARCH=0 // 0=阵列外加法，1=驻留传统�
                     else wait_count<=wait_count-1'b1; // 每拍递减，不读取busy/ready。
                 end
                 FLUSH: begin // 向阵列发出一拍排空命令。
-                    if (ARCH==2) begin state<=TAIL; wait_count<=4'(TAIL_CYCLES); end // CSA需将反馈carry累计到最终结果。
+                    if (ARCH==2) begin state<=TAIL; wait_count<=4'(TAIL_CYCLES); end // CSA需将各块共享加法结果写回PE。
                     else state<=STORE; // 传统及阵列外版本下一拍直接下载。
                 end
-                TAIL: begin // 与CSA阵列使用相同的五拍收尾日程。
+                TAIL: begin // 与CSA阵列使用相同的十拍收尾日程。
                     if (wait_count==1) state<=STORE; // 下一拍开始连续接收64项。
                     else wait_count<=wait_count-1'b1; // 收尾拍数与数据内容无关。
                 end
