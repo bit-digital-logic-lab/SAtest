@@ -1,7 +1,6 @@
-// 三个32×32块的存储和调度：C←C+A×B；通过interface驱动三种8×8计算阵列之一。
+// 三个32×32块的存储和调度：C←C+A×B；通过interface驱动8×8共享加法CSA阵列。
 // 上层/DMA负责补零和搬运；B保留到下次显式装载，C也可保留供下一次累计。
-module kwt_block32 #(parameter int ARCH=0 // 0=阵列外加法，1=驻留传统加法，2=驻留三压二
-) (
+module kwt_block32 (
     input logic clk, rst_n,           // 时钟、低有效异步复位
     input logic a_load_valid,         // A端口写入有效，与B端口独立
     input logic [9:0] a_load_addr,    // A块行优先地址
@@ -26,10 +25,8 @@ module kwt_block32 #(parameter int ARCH=0 // 0=阵列外加法，1=驻留传统�
         TAIL,  // 三压二固定十拍尾项收尾
         STORE  // 固定64拍下载，写回C块
     } state_t;
-    localparam int INPUT_II=(ARCH==0) ? 4 : ((ARCH==1) ? 3 : 1); // 三种架构的固定向量发射间隔。
     localparam int TAIL_CYCLES=10; // flush后：两块交替四行共8拍，加2拍固定收尾余量。
-    localparam int LAST_WAIT=(ARCH==0) ? 8 : ((ARCH==1) ? 4 : 5); // 末向量发射后到加法提交的固定拍数。
-    logic [1:0] issue_phase;          // 输入节拍相位，只由固定计数推进
+    localparam int LAST_WAIT=5; // 末向量发射后到压缩完成的固定拍数。
     logic [3:0] wait_count;           // 末向量等待/尾项收尾的固定计数
     state_t state;                     // 当前块调度阶段
     logic signed [11:0] a_mem[0:1023]; // A块；仅由上层装载
@@ -44,17 +41,13 @@ module kwt_block32 #(parameter int ARCH=0 // 0=阵列外加法，1=驻留传统�
     logic [79:0] b_cols;              // B独立广播总线，8列×10位
     kwt_array_if array_bus();          // 仅连接控制与部分和，不混入A/B数据
 
-    if (ARCH!=0) begin : quad_version // ARCH为1或2时使用四个4×4组成的驻留阵列。
-        kwt_array_quad #(.CSA(ARCH==2),.TAIL_CYCLES(TAIL_CYCLES)) u_array(.clk(clk),.rst_n(rst_n),
-            .a_rows(a_rows),.b_cols(b_cols),.bus(array_bus));
-    end else begin : pipe_version // ARCH为0时使用乘积流水、部分和轮转版本。
-        kwt_array_pipe u_array(.clk(clk),.rst_n(rst_n),
-            .a_rows(a_rows),.b_cols(b_cols),.bus(array_bus));
-    end
+    // 固定连接唯一CSA阵列，不保留旧架构选择分支。
+    kwt_array_quad #(.TAIL_CYCLES(TAIL_CYCLES)) u_array(.clk(clk),.rst_n(rst_n),
+        .a_rows(a_rows),.b_cols(b_cols),.bus(array_bus));
 
     assign busy = state!=IDLE; // 整个块任务未回到空闲阶段就保持忙。
     // 拼接“块内8×8起点”和“8×8局部行列”，得到32×32地址。
-    assign upload_addr = (ARCH==0) ? slot : {slot[5],slot[3:2],slot[4],slot[1:0]}; // 驻留版按块装入；阵列外版沿用行优先槽号。
+    assign upload_addr = {slot[5],slot[3:2],slot[4],slot[1:0]}; // 按4×4块内行序装入旧部分和。
     assign c_read_addr = state==LOAD ? {tile_i,upload_addr[5:3],tile_j,upload_addr[2:0]} : c_addr; // 装载阶段读当前8×8的C，其余阶段使用外部读地址。
     assign c_data = c_mem[c_read_addr]; // 按选定局部地址组合读取C块。
     assign c_write_addr = {tile_i,array_bus.out_addr[5:3],tile_j,array_bus.out_addr[2:0]}; // 拼接当前子块位置和输出行列，形成32×32写回地址。
@@ -62,9 +55,8 @@ module kwt_block32 #(parameter int ARCH=0 // 0=阵列外加法，1=驻留传统�
     // 组合控制：局部C加载、A/B广播和部分和回收相互独立。
     always_comb begin
         array_bus.load = state==LOAD; // 仅在历史和装载阶段写入PE。
-        array_bus.load_addr = slot; // 阵列外版使用此槽地址；驻留版按固定块序串行装入。
         array_bus.load_data = c_data; // 把C块读出的历史和作为PE初值。
-        array_bus.step = state==RUN && issue_phase==0; // 只在预定相位发射，模块不能延长或缩短间隔。
+        array_bus.step = state==RUN; // RUN阶段每拍发射，模块不能延长或缩短间隔。
         array_bus.flush = state==FLUSH; // 专用一拍状态发出统一排空命令。
         for (int r=0;r<8;r++) begin // 把行号限制为3位，再拼接子块号与K索引读取A/B。
             a_rows[r*12+:12] = a_mem[{tile_i,3'(r),k}];
@@ -81,11 +73,11 @@ module kwt_block32 #(parameter int ARCH=0 // 0=阵列外加法，1=驻留传统�
             c_mem[c_write_addr]<=array_bus.out_data;
     end
 
-    // 固定日程：上传64拍→32组向量按II发射→末向量等待→flush→CSA十拍收尾→下载64拍。
+    // 固定日程：上传64拍→32组向量连续发射→末向量等待→flush→CSA十拍收尾→下载64拍。
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin // 只复位控制，三个矩阵块随后由外部显式装载。
             state<=IDLE; tile_i<=0; tile_j<=0; slot<=0; k<=0;
-            done<=0; issue_phase<=0; wait_count<=0;
+            done<=0; wait_count<=0;
         end else begin // done仅在最后一个8×8下载完成时打一拍。
             done<=0;
             case (state)
@@ -93,25 +85,20 @@ module kwt_block32 #(parameter int ARCH=0 // 0=阵列外加法，1=驻留传统�
                     tile_i<=0; tile_j<=0; slot<=0; state<=LOAD;
                 end
                 LOAD: begin // 64个旧部分和连续推入原PE寄存器。
-                    if (slot==63) begin // 上传结束，下一拍按相位0发射首个K向量。
-                        slot<=0; k<=0; issue_phase<=0; state<=RUN;
-                    end else slot<=slot+1'b1; // 按当前架构的块内顺序读取下一个旧C。
+                    if (slot==63) begin // 上传结束，下一拍发射首个K向量。
+                        slot<=0; k<=0; state<=RUN;
+                    end else slot<=slot+1'b1; // 按块内行序读取下一个旧C。
                 end
-                RUN: begin // 计算节奏只依赖ARCH和相位，不等待下游反馈。
-                    if (issue_phase==2'(INPUT_II-1)) issue_phase<=0; // 到固定周期末尾，准备下一次发射。
-                    else issue_phase<=issue_phase+1'b1; // 其余拍维持流水运行，不额外发射。
-                    if (issue_phase==0) begin // 当前A/B向量在这一拍必定被采样。
-                        if (k==31) begin state<=WAIT; wait_count<=4'(LAST_WAIT); end // 发完末向量后固定等待提交。
-                        else k<=k+1'b1; // 下一组数据提前放到输入，等下一个固定发射位置。
-                    end
+                RUN: begin // 每拍发射一组K向量，连续32拍，不等待下游反馈。
+                    if (k==31) begin state<=WAIT; wait_count<=4'(LAST_WAIT); end // 末向量进入乘法流水。
+                    else k<=k+1'b1; // 下一拍立即提交下一组A/B。
                 end
                 WAIT: begin // 零乘数也消耗相同的流水拍数，不提前结束。
                     if (wait_count==1) state<=FLUSH; // 到达确定的最终写回时间。
                     else wait_count<=wait_count-1'b1; // 每拍递减，不读取busy/ready。
                 end
                 FLUSH: begin // 向阵列发出一拍排空命令。
-                    if (ARCH==2) begin state<=TAIL; wait_count<=4'(TAIL_CYCLES); end // CSA需将各块共享加法结果写回PE。
-                    else state<=STORE; // 传统及阵列外版本下一拍直接下载。
+                    state<=TAIL; wait_count<=4'(TAIL_CYCLES); // 按行完成共享CPA后再下载。
                 end
                 TAIL: begin // 与CSA阵列使用相同的十拍收尾日程。
                     if (wait_count==1) state<=STORE; // 下一拍开始连续接收64项。

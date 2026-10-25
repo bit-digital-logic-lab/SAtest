@@ -1,6 +1,6 @@
 // 4×4驻留块：A12、W10直接送到16个PE，不经column层；块内管理水平及上下行部分和通道。
 // 部分和从链尾上传，从链首按行下载；所有移位使用PE原累计寄存器，无额外行间寄存器。
-module kwt_quad4x4 #(parameter bit CSA=0) (
+module kwt_quad4x4 (
     input logic clk, rst_n,          // 时钟、低有效复位
     input logic [47:0] a_rows,       // 独立A端口：四个12位行输入
     input logic [39:0] b_cols,       // 独立B端口：四个10位列输入
@@ -17,7 +17,7 @@ module kwt_quad4x4 #(parameter bit CSA=0) (
     logic [127:0] row_sums,row_carries,row_results; // 共享四路加法通路
     logic row_commit; // 两拍加法写回标记
     logic [1:0] commit_row; // 写回目标行
-    if (CSA) begin : shared_add // 每个4×4只有四个最终加法器。
+    begin : shared_add // 每个4×4只有四个最终加法器。
         for (genvar c=0;c<4;c++) begin : select_lane
             // interface索引静态展开后，再选择本拍行，避免动态interface寻址。
             logic [31:0] sums[0:3]; // 当前列四行sum连线
@@ -43,21 +43,12 @@ module kwt_quad4x4 #(parameter bit CSA=0) (
             end else begin : tail // 最后一行末尾连接下一小块，不在大阵列展开PE通道。
                 assign next_sum.data=block_in.data; // 新上传数据由大阵列从块尾逐项推入。
             end
-            if (CSA) begin : csa_pe // A/B都直接到达本PE，内部只有乘法→两数驻留压缩。
+            begin : csa_pe // A/B都直接到达本PE，内部只有乘法→两数驻留压缩。
                 kwt_pe_csa u_pe(.clk(clk),.rst_n(rst_n),
                     .a($signed(a_rows[r*12+:12])),.b($signed(b_cols[c*10+:10])),
                     .compute(valid),.init(load),.shift(shift),
                     .finalize(row_commit && commit_row==2'(r)),.final_data(row_results[c*32+:32]),
                     .carry_data(carries[r*4+c]),
-                    .psum_in(next_sum),.psum_out(pe_out[r*4+c]));
-            end else begin : traditional_pe // 传统加法版本也直接由块实例化PE，不再按列管理。
-                logic mul_valid,mul_enable; // 三拍乘法位置和零值更新使能
-                logic signed [21:0] product; // 仅本PE附近传递的完整乘积
-                kwt_mul u_mul(.clk(clk),.rst_n(rst_n),.a($signed(a_rows[r*12+:12])),
-                    .b($signed(b_cols[c*10+:10])),.in_valid(valid),
-                    .out_valid(mul_valid),.out_enable(mul_enable),.product(product));
-                kwt_pe_resident u_pe(.clk(clk),.rst_n(rst_n),.init(load),
-                    .compute(mul_valid),.enable(mul_enable),.product(product),.shift(shift),
                     .psum_in(next_sum),.psum_out(pe_out[r*4+c]));
             end
         end

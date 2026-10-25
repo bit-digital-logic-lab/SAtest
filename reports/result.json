@@ -1,0 +1,64 @@
+{
+  "measured_source_tag": "archive/all-strategies-before-cleanup-20261025",
+  "note": "清理前当前CSA同电路映射摘要；清理后重新运行功能及结构验证，未重新执行标准单元映射。",
+  "block_cycles": 2816,
+  "layer_cycles": 180224,
+  "measurements": {
+    "core": {
+      "scope": "core",
+      "top": "kwt_core_synth",
+      "cells": 101837,
+      "area_um2": 233600.63999999998,
+      "area_mm2": 0.23360064,
+      "lib_sha256": "a0b364d68bfdd5c708b22dcc08b3e5bb6353df0a05235e176b283c97c591ef78",
+      "worst_setup_slack_ns": 2.287006,
+      "setup_tns_ns": 0.0,
+      "meets_150mhz_pre_layout": true,
+      "power_estimates": {
+        "0p1": {
+          "internal_W": 0.02151989,
+          "switching_W": 0.00161615,
+          "leakage_W": 0.0004237354,
+          "total_W": 0.02355978
+        },
+        "0p5": {
+          "internal_W": 0.0436298,
+          "switching_W": 0.008079934,
+          "leakage_W": 0.0004237354,
+          "total_W": 0.05213347
+        }
+      }
+    },
+    "block": {
+      "scope": "block",
+      "top": "kwt_block32",
+      "cells": 363748,
+      "area_um2": 899244.92,
+      "area_mm2": 0.89924492,
+      "lib_sha256": "a0b364d68bfdd5c708b22dcc08b3e5bb6353df0a05235e176b283c97c591ef78",
+      "worst_setup_slack_ns": 2.656639,
+      "setup_tns_ns": 0.0,
+      "meets_150mhz_pre_layout": true,
+      "power_estimates": {
+        "0p1": {
+          "internal_W": 0.1024672,
+          "switching_W": 0.005391198,
+          "leakage_W": 0.001643739,
+          "total_W": 0.1095022
+        },
+        "0p5": {
+          "internal_W": 0.1696415,
+          "switching_W": 0.02697259,
+          "leakage_W": 0.001643739,
+          "total_W": 0.1982578
+        }
+      }
+    }
+  },
+  "cleanup_verification": {
+    "cases": 28,
+    "outputs": 612728,
+    "block_cycles": 2816,
+    "yosys_check": "passed"
+  }
+}

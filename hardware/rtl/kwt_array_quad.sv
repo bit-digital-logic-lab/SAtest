@@ -1,6 +1,6 @@
 // 8×8驻留阵列：四个4×4广播子块；大阵列只管理4×4块的连接和下载节拍，块内PE通道由各块管理。
 // 上层每次连续上传64项，按块序、块内行序提供旧部分和；四个块依次下载，每块内从(0,0)到(3,3)，开始后每个时钟移动一级，不插空拍。
-module kwt_array_quad #(parameter bit CSA=0, parameter int TAIL_CYCLES=10) (
+module kwt_array_quad #(parameter int TAIL_CYCLES=10) (
     input logic clk, rst_n,          // 时钟、低有效复位
     input logic [95:0] a_rows,       // 独立A端口：8行×12位
     input logic [79:0] b_cols,       // 独立B端口：8列×10位
@@ -18,10 +18,10 @@ module kwt_array_quad #(parameter bit CSA=0, parameter int TAIL_CYCLES=10) (
 
     for (genvar q=0;q<4;q++) begin : blocks // q=0左上、1右上、2左下、3右下，依块下载。
         // 倒计数10/9送行0，8/7送行1；偶数块先出、奇数块下一拍出。
-        kwt_quad4x4 #(.CSA(CSA)) u_block(.clk(clk),.rst_n(rst_n),
+        kwt_quad4x4 u_block(.clk(clk),.rst_n(rst_n),
             .a_rows(a_rows[(q/2)*48+:48]),.b_cols(b_cols[(q%2)*40+:40]),
             .valid(bus.step),.load(bus.load),.shift(shift_en),
-            .row_issue(CSA && finish_count>2 && (finish_count[0]==1'(q%2))),
+            .row_issue(finish_count>2 && (finish_count[0]==1'(q%2))),
             .row_select(2'((TAIL_CYCLES-int'(finish_count))/2)),
             .block_in(block_links[q+1]),.block_out(block_links[q]));
     end
@@ -31,10 +31,9 @@ module kwt_array_quad #(parameter bit CSA=0, parameter int TAIL_CYCLES=10) (
         if (!rst_n) begin // 复位控制状态，C随后由64拍上传填满。
             draining<=0; drain_addr<=0; finish_count<=0;
         end else begin // 没有ready/busy反馈，所有阶段由固定计数推进。
-            if (bus.flush) begin // 三压二八拍交替出行加两拍余量；传统版可立即进入下载。
+            if (bus.flush) begin // 三压二八拍交替出行加两拍余量。
                 drain_addr<=0;
-                if (CSA) finish_count<=4'(TAIL_CYCLES); // 相邻块交替出行，共八个出行拍和两拍收尾。
-                else draining<=1; // 传统加法已由块控制器固定等待完成。
+                finish_count<=4'(TAIL_CYCLES); // 相邻块交替出行，共八个出行拍和两拍收尾。
             end
             if (finish_count!=0) begin // 每拍倒数，不随零乘积或数据内容改变。
                 finish_count<=finish_count-1'b1;

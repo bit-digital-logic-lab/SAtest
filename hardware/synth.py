@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""三种结构在55nm SS库、150MHz目标下的标准单元映射、OpenSTA时序及翻转率功耗估计；结果保存在.build/synth150。"""
+"""共享加法CSA在55nm SS库、150MHz目标下的标准单元映射、OpenSTA时序及翻转率功耗估计；结果保存在.build/synth150。"""
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import shutil
@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / '.build/synth150'
 LIB = Path('/home/yang/yosys-sta/pdk/icsprout55/IP/STD_cell/ics55_LLSC_H7C_V1p10C100/ics55_LLSC_H7CL/liberty/ics55_LLSC_H7CL_ss_rcworst_1p08_125_nldm.lib')
 STA = Path(shutil.which('sta') or str(ROOT / '.build/tools/opensta/usr/bin/sta'))
-VERSIONS = {'outside':0, 'inside_traditional':1, 'inside_csa':2}
+VERSIONS = ['shared_csa']
 
 
 def run_logged(command, log):
@@ -66,11 +66,11 @@ def measure(scope, version, areas, reuse=False):
     target = OUT / scope / version
     target.mkdir(parents=True, exist_ok=True)
     top = 'kwt_core_synth' if scope=='core' else 'kwt_block32'
-    sources = [ROOT/'hardware/rtl/common/kwt_interfaces.sv']
+    sources = [ROOT/'hardware/rtl/kwt_interfaces.sv']
     sources += sorted(p for p in (ROOT/'hardware/rtl').rglob('*.sv') if p!=sources[0])
     sources += [ROOT/'hardware/synth/kwt_core_synth.sv']
     (target/'abc.constr').write_text('set_driving_cell BUFX0P5H7L\nset_load 10\n')
-    script = f'''read_slang --top {top} -GARCH={VERSIONS[version]} {' '.join(map(str,sources))}
+    script = f'''read_slang --top {top} {' '.join(map(str,sources))}
 synth -top {top} -flatten -noabc
 dfflibmap -liberty {LIB}
 abc -liberty {LIB} -D 6666.667 -constr {target/'abc.constr'}
@@ -160,13 +160,12 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output',type=Path,help='独立结果目录，避免覆盖其他架构快照')
     parser.add_argument('--scope',choices=['core','block','all'],default='all')
-    parser.add_argument('--version',choices=[*VERSIONS,'all'],default='all')
     parser.add_argument('--reuse-mapped',action='store_true',help='复用当前RTL已经映射的网表，只重跑STA')
     args=parser.parse_args()
     if args.output: OUT=args.output.resolve()
     areas={name:float(area) for name,area in re.findall(r'cell\s*\(([^)]+)\)\s*\{.*?\barea\s*:\s*([0-9.eE+-]+)',LIB.read_text(),re.S)}
     scopes=['core','block'] if args.scope=='all' else [args.scope]
-    versions=list(VERSIONS) if args.version=='all' else [args.version]
+    versions=VERSIONS
     OUT.mkdir(parents=True,exist_ok=True)
     manifest={str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest()
               for p in sorted((ROOT/'hardware/rtl').rglob('*.sv'))}

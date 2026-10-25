@@ -1,35 +1,37 @@
-# KWT-1 32×32 矩阵块
+# SAtest：共享行加法CSA阵列
 
-硬件按层次拆分：`hardware/rtl/common/` 放接口、乘法器及共用控制；三种计算结构分别位于 `outside/`、`inside_traditional/`、`inside_csa/`。顶层 `kwt_block32` 用 `ARCH=0/1/2` 选择对应架构。
+当前只保留一套RTL：8×8阵列由四个4×4块组成，64个A12W10乘法器；PE内驻留sum/carry，每个4×4共享四路两拍最终加法器。相邻两块交替送行，结果写回原PE，再串行排出。内部按固定时钟执行，无反压。
 
-- `outside`：64 个乘法器、16 个加法 PE，轮转累加。
-- `inside_traditional`：64 个乘法器、64 个 PE，传统两拍加法与反馈停顿。
-- `inside_csa`：64 个乘法器、64 个 PE，每拍将乘积与驻留sum/carry做三压二；PE无进位加法器，每个4×4共享四路两拍最终加法器。
+## 工程目录
 
-每个计算块处理 32×32，按 `C += A×B` 累加；B 在同一 K 分块的行块间驻留。bias 由主机装入 C，K 分块末尾的部分和再由主机回读并装入。外部 DMA 负责边界补零。顶层A12、B10和C32使用独立写入端口，A/B可以同拍装载；`CE=0` 不暂停时序。
+- `hardware/rtl/`：8个RTL文件，接口、乘法器、压缩器、PE、行加法器、4×4、8×8、32×32顶层。
+- `hardware/tb/`：逐点验证和固定周期检查。
+- `hardware/run.py`：功能回归入口。
+- `hardware/synth.py`、`hardware/synth/`：150MHz映射与时序入口、核心封装。
+- `model/SA_model.py`：手写参考模型，保持原稿。
+- `software/`：量化参数、真实验证数据和软件模型。
+- `reports/`：当前方案测量摘要。
+- `题目/`、`资料/`：原始比赛题目与参考资料。
 
-驻留层次：`kwt_block32` → `kwt_array_quad`（8×8）→ `kwt_quad4x4` → 16个PE。CSA PE内部连接乘法器与两数驻留压缩器，最终加法器位于4×4块内；上下行通道由4×4块的`vertical`分支负责。
+数据流：`kwt_block32` → `kwt_array_quad` → `kwt_quad4x4` → `kwt_pe_csa` → `kwt_mul` / `kwt_csa32`；`kwt_quad4x4`内的`kwt_row_adder`负责最终两数相加。模块之间的部分和通道由`kwt_interfaces.sv`定义，A12与B10使用独立输入端口。
 
-三压二版按 `kwt_mul` → `kwt_csa32` → `kwt_pe_csa` → `kwt_quad4x4`（共享 `kwt_row_adder`） → array → `kwt_block32` 阅读。驻留版的 A/B 在每个 4×4 子阵列内直接到达对应乘法器；乘法结果经过真实三拍流水，输入广播不会组合穿过这三拍。
+## 运行
 
-驻留版不使用column层：4×4块直接管理16个PE、水平通道和行尾到下一行的通道；8×8只管理四个块。上传/下载共用64个原部分和寄存器，按左上、右上、左下、右下依块推进，每块内按行序移位；无影子结果页或行间中转寄存器。每次8×8上传需64个连续时钟，下载需64个连续时钟。下载开始后每拍前移，固定64拍完成，不支持反压。
+```bash
+python3 hardware/run.py --full --synth
+python3 hardware/synth.py --scope all
+```
 
-内部采用确定性节拍，没有ready或反压控制：32个K向量的发射间隔分别为4/3/1拍；末向量固定等待8/4/5拍；CSA在flush后固定10拍收尾（8拍交替送行、2拍完成加法及转入下载）；上传与下载各64拍。valid只标记流水中的数据位置，不是停顿请求。顶层busy/done只报告任务边界。
+仿真结果在`.build/simulation/`，映射结果在`.build/synth150/`。`--full`覆盖12层各2个真实样本，另含随机尾块、零值、稀疏、补码极值和驻留重复累计。综合使用本机ICsprout55库与OpenSTA，库/工具位置见`hardware/synth.py`。
 
-量化采用 A12W10、INT32 回绕；手写 `model/SA_model.py` 保留原稿，其38位饱和规则与此RTL不同。
+每个32×32块执行`C += A×B`，B跨任务保留；bias由外部作为初始C装入，DMA负责全局边界与补零。RTL采用INT32回绕，手写Python模型的38位饱和规则另行保留。
 
-`hardware/run.py --version outside|inside_traditional|inside_csa|all` 保留为后续回归入口，`--synth` 仅作结构网表检查。`--full`覆盖12层各2个真实样本，默认另含随机尾块、零输入、稀疏及补码边界用例；逐点检查INT32输出并测量各阶段周期。
+当前32×32任务2816拍，99×64×256层180224拍。面积、时序及估计功耗见[当前测量摘要](reports/README.md)。
 
-新版CSA已重跑仿真和150MHz综合：[新旧CSA完整对比与原始报告](reports/csa_compare/README.md)。核心面积0.233601mm²，相比旧版减少25.21%；每32×32任务2816拍，完整层180224拍，150MHz下2.700GOPS。下表保留此前三个版本的历史基线。
+## 旧版存档
 
-150MHz映射与功耗估计使用 `python3 hardware/synth.py --scope all`，结果在 `.build/synth150/`。库为ICsprout55 SS/1.08V/125°C，最终时序和功耗采用OpenSTA；三种核心及三种32×32块模块均满足本次映射后150MHz setup约束。未布局布线，块存储目前是触发器实现。
+其他方案和原始对比报告仅保存在Git标签`archive/all-strategies-before-cleanup-20261025`，不在当前目录保留副本；旧逐PE加法CSA标签为`csa-per-pe`，共享CSA初版为`csa-shared-row`。
 
-| 方案 | 核心面积mm² | 32×32任务拍数 | 99×64×256有效GOPS@150MHz | 核心估计mW（0.1次翻转/周期） |
-| --- | ---: | ---: | ---: | ---: |
-| 阵列外加法 | 0.214322 | 4192 | 1.813740 | 21.929 |
-| 驻留传统 | 0.217529 | 3632 | 2.093392 | 22.649 |
-| 旧版逐PE加法CSA（历史） | 0.312363 | 2736 | 2.778947 | 35.940 |
-
-功耗是统一活动假设的Liberty估计，未标注实际VCD/SAIF或寄生；零值CE的真实节能比例尚未测量。完整块模块的触发器存储版面积、功耗和能量另见 `.build/synth150/summary.json`。`--reuse-mapped` 只在RTL未变化时用于复核已有映射网表。
-
-共享加法CSA：块0/1交替出行，块2/3同步执行相同交替节拍；每块拥有自己的四路加法组，8×8合计16路，原版为64路。每对块依次发送A0、B0、A1、B1、A2、B2、A3、B3。两拍结果写回原PE的sum寄存器，carry清零；随后原64拍移位链输出。计算阶段每拍一个K向量，零乘积只关闭本PE数据更新。
+```bash
+git show archive/all-strategies-before-cleanup-20261025:reports/csa_compare/README.md
+```

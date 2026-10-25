@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""三种固定节拍架构的整数逐点回归与周期测量。"""
+"""共享加法CSA的整数逐点回归与周期测量。"""
 from __future__ import annotations
 
 import argparse
@@ -15,17 +15,12 @@ ROOT = Path(__file__).resolve().parent.parent
 HW = ROOT / "hardware"
 RTL = HW / "rtl"
 TB = HW / "tb" / "tb_kwt_block32.sv"
-BUILD = ROOT / ".build" / "architectures"
-ARCH_DIRS = {
-    "outside": (0, RTL / "outside"),
-    "inside_traditional": (1, RTL / "inside_traditional"),
-    "inside_csa": (2, RTL / "inside_csa"),
-}
+BUILD = ROOT / ".build" / "simulation"
 
 
 def sources_for(version: str) -> list[Path]:
-    """接口先读，其他模块统一收集；ARCH在展开时选择实际硬件。"""
-    interface = RTL / "common" / "kwt_interfaces.sv"
+    """接口先读，其他模块统一收集；只编译当前CSA层次。"""
+    interface = RTL / "kwt_interfaces.sv"
     return [interface, *sorted(p for p in RTL.rglob("*.sv") if p != interface)]
 
 
@@ -99,9 +94,8 @@ def compile_version(version: str) -> tuple[Path, Path]:
     out.mkdir(parents=True, exist_ok=True)
     binary = out / "Vtb_kwt_block32"
     log = out / "compile.log"
-    arch = ARCH_DIRS[version][0]
     command = ["verilator", "--binary", "--timing", "--assert", "-Wno-fatal", "-j", "4",
-               "--top-module", "tb_kwt_block32", "-GARCH=" + str(arch),
+               "--top-module", "tb_kwt_block32",
                "--Mdir", str(out / "obj"), "-o", str(binary)]
     command += [str(path) for path in sources_for(version)] + [str(TB)]
     with log.open("w") as stream:
@@ -137,9 +131,8 @@ def synth(version: str) -> None:
     out.mkdir(parents=True, exist_ok=True)
     netlist = out / "kwt_block32.json"
     log = out / "synth.log"
-    arch = ARCH_DIRS[version][0]
     files = " ".join(str(path) for path in sources_for(version))
-    script = (f"read_slang --top kwt_block32 -GARCH={arch} {files}; hierarchy -check -top kwt_block32; "
+    script = (f"read_slang --top kwt_block32 {files}; hierarchy -check -top kwt_block32; "
               f"flatten; proc; opt; wreduce; opt; check -assert; write_json {netlist}")
     with log.open("w") as stream:
         result = subprocess.run(["yosys", "-m", "slang", "-p", script], cwd=ROOT,
@@ -151,12 +144,11 @@ def synth(version: str) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--version", choices=("outside", "inside_traditional", "inside_csa", "all"), default="all")
     parser.add_argument("--full", action="store_true", help="追加12层、每层2个冻结真实样本回归")
     parser.add_argument("--synth", action="store_true", help="执行Slang/Yosys结构检查")
     parser.add_argument("--seed", type=int, default=0x8A1210)
     args = parser.parse_args()
-    versions = list(ARCH_DIRS) if args.version == "all" else [args.version]
+    versions = ["shared_csa"]
     required = [TB]
     for version in versions:
         required.extend(sources_for(version))
