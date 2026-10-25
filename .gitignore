@@ -1,0 +1,14 @@
+# 构建、运行结果和编辑器缓存。
+.build/
+__pycache__/
+*.py[cod]
+*.vcd
+*.fst
+.ai-checks/
+.obsidian/
+.DS_Store
+*~
+
+# 原始大数据和独立上游仓库不并入本项目Git。
+/资料/数据集/speech_commands_v0.02.tar.gz
+/资料/e203_hbirdv2_full/
