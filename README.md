@@ -14,6 +14,8 @@ CSA/普通版是ACC32回绕，双乘版为ACC28回绕，均非手写模型的38�
 
 ## CSA重点入口
 
+[核心连线与逐级零值隔离](hardware/CORE.md)：三级数据保持、有效位对齐、三种PE使能及可执行检查。
+
 [PE](hardware/versions/csa/rtl/kwt_pe_csa.sv) → [驻留三压二](hardware/versions/csa/rtl/kwt_csa32.sv) → [4×4集中加法与行通道](hardware/versions/csa/rtl/kwt_quad4x4.sv) → [低16/高16两拍CPA](hardware/versions/csa/rtl/kwt_row_adder.sv) → [8×8固定日程](hardware/versions/csa/rtl/kwt_array_quad.sv)。集中指每4×4四路共享，不是整个阵列仅一个累加器。
 
 ## 实验候选
@@ -41,3 +43,5 @@ python3 hardware/experiments/mulwidth/run.py
 `--version normal`、`--version dual`可单独选择。综合使用55nm SS/1.08V/125°C库；面积为标准单元面积，未布局布线，不能作为硅片功耗或时序签核。正式周期不含主机装载、外部DMA和CPU等待；当前尚未完成NICE/SoC接入。
 
 [CSA频率实测](hardware/versions/csa/reports/frequency/README.md)：按400MHz目标映射后，实际300MHz通过；核心352MHz、完整模块308MHz分别为本次整数MHz边界通过点。更早方案保存在Git标签，当前目录不恢复冗余旧版本。
+
+[项目完整总结](项目完整总结.md)：题目、设计思路、全部版本、实验、报告索引、已验证范围与待完成项。
