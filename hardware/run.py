@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CSA与普通单拍累加的整数逐点回归与周期测量。"""
+"""CSA、普通及双乘版本的整数逐点回归与周期测量。"""
 from __future__ import annotations
 
 import argparse
@@ -30,7 +30,7 @@ def write_hex(path: Path, values, width: int) -> None:
     path.write_text("".join(f"{int(v) & mask:0{(width + 3) // 4}x}\n" for v in values))
 
 
-def vectors(directory: Path, m: int, k: int, n: int, seed: int, pattern: str = "random") -> dict[str, str]:
+def vectors(directory: Path, m: int, k: int, n: int, seed: int, pattern: str = "random", acc_bits: int = 32) -> dict[str, str]:
     rng = random.Random(seed)
     a = [[rng.randrange(-2048, 2048) for _ in range(k)] for _ in range(m)]
     b = [[rng.randrange(-512, 512) for _ in range(n)] for _ in range(k)]
@@ -50,6 +50,8 @@ def vectors(directory: Path, m: int, k: int, n: int, seed: int, pattern: str = "
         (bias[c] + sum(a[r][t] * b[t][c] for t in range(k))) & 0xFFFFFFFF
         for r in range(m) for c in range(n)
     ]
+    # 将宽整数独立参考按所选累加位宽回绕，再符号扩展到外部32位行接口。
+    expected = [(((v + (1 << (acc_bits-1))) % (1 << acc_bits)) - (1 << (acc_bits-1))) & 0xFFFFFFFF for v in expected]
     directory.mkdir(parents=True, exist_ok=True)
     files = {"A": directory / "a.hex", "B": directory / "b.hex",
              "BIAS": directory / "bias.hex", "EXPECTED": directory / "expected.hex",
@@ -63,7 +65,7 @@ def vectors(directory: Path, m: int, k: int, n: int, seed: int, pattern: str = "
     }
 
 
-def real_vectors(directory: Path, layer: int = 1, sample: int = 0) -> dict[str, str]:
+def real_vectors(directory: Path, layer: int = 1, sample: int = 0, acc_bits: int = 32) -> dict[str, str]:
     params = np.load(ROOT / "software" / "parameters.npz")
     validation = np.load(ROOT / "software" / "validation.npz")
     prefix = f"layer{layer:02d}"
@@ -77,6 +79,8 @@ def real_vectors(directory: Path, layer: int = 1, sample: int = 0) -> dict[str, 
         (int(bias[c]) + sum(int(a[r, t]) * int(b[t, c]) for t in range(k))) & 0xFFFFFFFF
         for r in range(m) for c in range(n)
     ]
+    # 将宽整数独立参考按所选累加位宽回绕，再符号扩展到外部32位行接口。
+    expected = [(((v + (1 << (acc_bits-1))) % (1 << acc_bits)) - (1 << (acc_bits-1))) & 0xFFFFFFFF for v in expected]
     directory.mkdir(parents=True, exist_ok=True)
     files = {"A": directory / "a.hex", "B": directory / "b.hex",
              "BIAS": directory / "bias.hex", "EXPECTED": directory / "expected.hex",
@@ -97,6 +101,8 @@ def compile_version(version: str) -> tuple[Path, Path]:
     log = out / "compile.log"
     command = ["verilator", "--binary", "--timing", "--assert", "-Wno-fatal", "-j", "4",
                "--top-module", "tb_kwt_block32", "-GTAIL_CYCLES=" + ("10" if version=="csa" else "0"),
+               "-GK_LANES=" + ("2" if version=="dual" else "1"),
+               "-GACC_BITS=" + ("28" if version=="dual" else "32"),
                "--Mdir", str(out / "obj"), "-o", str(binary)]
     command += [str(path) for path in sources_for(version)] + [str(TB)]
     with log.open("w") as stream:
@@ -104,6 +110,22 @@ def compile_version(version: str) -> tuple[Path, Path]:
     if result.returncode:
         raise RuntimeError(f"compile {version} failed; see {log}")
     return binary, log
+
+
+def check_dual_pe() -> None:
+    """双乘版逐拍检查两个独立三级乘法和28位累加，日志与整层回归同目录。"""
+    out = BUILD / "dual" / "pe"
+    out.mkdir(parents=True, exist_ok=True)
+    binary = out / "Vtb_kwt_pe_dual"
+    command = ["verilator", "--binary", "--timing", "--assert", "-Wno-fatal", "-j", "4",
+               "--top-module", "tb_kwt_pe_dual", "--Mdir", str(out / "obj"), "-o", str(binary)]
+    command += [str(path) for path in sources_for("dual")]
+    command += [str(HW / "versions/dual/tb/tb_kwt_pe_dual.sv")]
+    with (out / "compile.log").open("w") as stream:
+        subprocess.run(command, cwd=ROOT, stdout=stream, stderr=subprocess.STDOUT, check=True)
+    with (out / "run.log").open("w") as stream:
+        subprocess.run([str(binary)], cwd=ROOT, stdout=stream, stderr=subprocess.STDOUT, check=True)
+    print((out / "run.log").read_text().splitlines()[0], flush=True)
 
 
 def run_case(binary: Path, version: str, name: str, args: dict[str, str]) -> dict:
@@ -133,7 +155,7 @@ def synth(version: str) -> None:
     netlist = out / "kwt_block32.json"
     log = out / "synth.log"
     files = " ".join(str(path) for path in sources_for(version))
-    script = (f"read_slang --top kwt_block32 -GTAIL_CYCLES={10 if version=='csa' else 0} {files}; hierarchy -check -top kwt_block32; "
+    script = (f"read_slang --top kwt_block32 -GK_LANES={2 if version=='dual' else 1} -GTAIL_CYCLES={10 if version=='csa' else 0} {files}; hierarchy -check -top kwt_block32; "
               f"flatten; proc; opt; wreduce; opt; check -assert; write_json {netlist}")
     with log.open("w") as stream:
         result = subprocess.run(["yosys", "-m", "slang", "-p", script], cwd=ROOT,
@@ -145,12 +167,15 @@ def synth(version: str) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--version",choices=("csa","normal","all"),default="csa")
+    parser.add_argument("--version",choices=("csa","normal","dual","all"),default="csa")
     parser.add_argument("--full", action="store_true", help="追加12层、每层2个冻结真实样本回归")
     parser.add_argument("--synth", action="store_true", help="执行Slang/Yosys结构检查")
     parser.add_argument("--seed", type=int, default=0x8A1210)
+    parser.add_argument("--output", type=Path, help="独立回归结果目录")
     args = parser.parse_args()
-    versions = ["csa","normal"] if args.version=="all" else [args.version]
+    global BUILD
+    if args.output: BUILD = args.output.resolve()
+    versions = ["csa","normal","dual"] if args.version=="all" else [args.version]
     required = [TB]
     for version in versions:
         required.extend(sources_for(version))
@@ -161,19 +186,20 @@ def main() -> int:
     results = []
     try:
         for version in versions:
+            if version == "dual": check_dual_pe()
             binary, _ = compile_version(version)
-            default = vectors(BUILD / version / "matrix_35x37x40", 35, 37, 40, args.seed)
+            default = vectors(BUILD / version / "matrix_35x37x40", 35, 37, 40, args.seed, acc_bits=28 if version=="dual" else 32)
             stats = [run_case(binary, version, "matrix_35x37x40", default)]
             for pattern in ("zero", "sparse", "extremes"):
                 name = f"{pattern}_32x64x32"
                 stats.append(run_case(binary, version, name,
-                    vectors(BUILD / version / name, 32, 64, 32, args.seed, pattern)))
+                    vectors(BUILD / version / name, 32, 64, 32, args.seed, pattern, acc_bits=28 if version=="dual" else 32)))
             if args.full:
                 for layer in range(1, 13):
                     for sample in range(2):
                         name = f"real_layer{layer:02d}_sample{sample}"
                         stats.append(run_case(binary, version, name,
-                            real_vectors(BUILD / version / name, layer, sample)))
+                            real_vectors(BUILD / version / name, layer, sample, acc_bits=28 if version=="dual" else 32)))
             if args.synth:
                 synth(version)
             results.extend(stats)

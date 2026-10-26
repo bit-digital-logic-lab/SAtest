@@ -1,6 +1,7 @@
 // 三个32×32块的存储和调度：C←C+A×B；通过interface驱动所选版本的8×8阵列。
 // 上层/DMA负责补零和搬运；B保留到下次显式装载，C也可保留供下一次累计。
-module kwt_block32 #(parameter int TAIL_CYCLES=10 // CSA收尾10拍；普通累加无收尾，设为0
+module kwt_block32 #(parameter int K_LANES=1, // 每拍K数：旧版本1，双独立乘法版本2
+parameter int TAIL_CYCLES=10 // CSA收尾10拍；普通累加无收尾，设为0
 ) (
     input logic clk, rst_n,           // 时钟、低有效异步复位
     input logic a_load_valid,         // A端口写入有效，与B端口独立
@@ -20,7 +21,7 @@ module kwt_block32 #(parameter int TAIL_CYCLES=10 // CSA收尾10拍；普通累�
     typedef enum logic [2:0] {
         IDLE,  // 等待装载或开始
         LOAD,  // 把8×8历史C送入PE
-        RUN,   // 连续提交32个K向量
+        RUN,   // 连续提交32/K_LANES组向量
         WAIT,  // 固定等待末向量的算术流水
         FLUSH, // 发出部分和排空命令
         TAIL,  // 可选最终加法收尾，普通版跳过
@@ -36,13 +37,21 @@ module kwt_block32 #(parameter int TAIL_CYCLES=10 // CSA收尾10拍；普通累�
     logic [2:0] slot;                  // 历史和装载/结果接收计数
     logic [4:0] k;                     // 块内归约索引0～31
     logic [6:0] c_read_addr,c_write_addr; // bank内地址：5位行号＋2位列组号
+    logic [95:0] a_rows1; // 双乘版本第二K的A行向量
+    logic [79:0] b_cols1; // 双乘版本第二K的B列向量
+    logic [4:0] k_next; // 相邻K索引，双乘版本只发射偶数起点
     logic [95:0] a_rows;              // A独立广播总线，8行×12位
     logic [79:0] b_cols;              // B独立广播总线，8列×10位
     kwt_array_if array_bus();          // 仅连接控制与部分和，不混入A/B数据
 
     // 连接编译时选定的阵列版本，算术模块不混用。
-    kwt_array_quad u_array(.clk(clk),.rst_n(rst_n),
-        .a_rows(a_rows),.b_cols(b_cols),.bus(array_bus));
+    if(K_LANES==2) begin : dual // 编译时选双独立乘法PE，数据口带宽加倍。
+        kwt_array_dual u_array(.clk(clk),.rst_n(rst_n),.a_rows(a_rows),.b_cols(b_cols),
+            .a_rows1(a_rows1),.b_cols1(b_cols1),.bus(array_bus));
+    end else begin : single // 原有版本的端口和日程保持不变。
+        kwt_array_quad u_array(.clk(clk),.rst_n(rst_n),.a_rows(a_rows),.b_cols(b_cols),.bus(array_bus));
+    end
+    assign k_next=k+5'd1; // 第二通道严格取相邻K，不映射到其他输出。
 
     assign busy = state!=IDLE; // 整个块任务未回到空闲阶段就保持忙。
     assign c_read_addr = state==LOAD ? {tile_i,slot,tile_j} : {c_addr[9:5],c_addr[4:3]}; // LOAD读取当前整行，其余时间服务主机标量读。
@@ -58,6 +67,8 @@ module kwt_block32 #(parameter int TAIL_CYCLES=10 // CSA收尾10拍；普通累�
             array_bus.load_data[r*32+:32] = c_bank_data[r]; // 8个bank并行提供旧部分和。
             a_rows[r*12+:12] = a_mem[{tile_i,3'(r),k}];
             b_cols[r*10+:10] = b_mem[{k,tile_j,3'(r)}];
+            a_rows1[r*12+:12] = a_mem[{tile_i,3'(r),k_next}]; // 双乘第二路激活。
+            b_cols1[r*10+:10] = b_mem[{k_next,tile_j,3'(r)}]; // 双乘第二路权重。
         end
     end
 
@@ -79,7 +90,7 @@ module kwt_block32 #(parameter int TAIL_CYCLES=10 // CSA收尾10拍；普通累�
         end
     end
 
-    // 固定日程：上传8拍→32组向量连续发射→末向量等待→flush→按版本收尾→下载8拍。
+    // 固定日程：上传8拍→32/K_LANES组向量连续发射→末向量等待→flush→按版本收尾→下载8拍。
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin // 只复位控制，三个矩阵块随后由外部显式装载。
             state<=IDLE; tile_i<=0; tile_j<=0; slot<=0; k<=0;
@@ -95,9 +106,9 @@ module kwt_block32 #(parameter int TAIL_CYCLES=10 // CSA收尾10拍；普通累�
                         slot<=0; k<=0; state<=RUN;
                     end else slot<=slot+1'b1; // 按块内行序读取下一个旧C。
                 end
-                RUN: begin // 每拍发射一组K向量，连续32拍，不等待下游反馈。
-                    if (k==31) begin state<=WAIT; wait_count<=4'(LAST_WAIT); end // 末向量进入乘法流水。
-                    else k<=k+1'b1; // 下一拍立即提交下一组A/B。
+                RUN: begin // 每拍发射一组K向量，连续32/K_LANES拍，不等待下游反馈。
+                    if (k==5'(32-K_LANES)) begin state<=WAIT; wait_count<=4'(LAST_WAIT); end // 末向量进入乘法流水。
+                    else k<=k+5'(K_LANES); // 下一拍立即提交下一组A/B。
                 end
                 WAIT: begin // 零乘数也消耗相同的流水拍数，不提前结束。
                     if (wait_count==1) state<=FLUSH; // 到达确定的最终写回时间。

@@ -1,0 +1,20 @@
+{
+  "top": "kwt_core_16x32_m1",
+  "rows": 16,
+  "cols": 32,
+  "multipliers_per_pe": 1,
+  "outputs": 512,
+  "macs_per_cycle": 512,
+  "area_mm2": 1.410172960006,
+  "cells": 650619,
+  "setup_slack_ns": 2.626703,
+  "tns_ns": 0.0,
+  "area_per_mac_um2": 2754.2440625117188,
+  "operand_bits_per_cycle": 512,
+  "operand_bits_per_mac": 1.0,
+  "tile_storage_bits_k64": 47104,
+  "storage_bits_per_mac": 92.0,
+  "tile_count_8rowstrips": 56,
+  "run_cycles_per_layer": 3584,
+  "linear_fmax_mhz": 247.5269785842133
+}

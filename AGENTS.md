@@ -1,6 +1,6 @@
 # 工程约定
 
-- 当前有用户要求的两个版本：`hardware/versions/csa/`共享行加法CSA；`hardware/versions/normal/`单拍普通累加。共用接口、乘法器和32×32控制位于`hardware/rtl/`；编译时只选一个版本，不混读同名模块。
+- 当前有用户要求的三个版本：`hardware/versions/csa/`共享行加法CSA；`hardware/versions/normal/`单拍普通累加；`hardware/versions/dual/`每PE两个独立三级乘法+组合三压二+单拍ACC28。双乘版同拍处理相邻两个K，旧和低28位装入，输出符号扩展回32位。共用接口、乘法器和32×32控制位于`hardware/rtl/`；编译时只选一个版本，不混读同名模块。
 - 阵列按固定拍数执行，内部不增加ready/反压或按busy等待；零值只关闭数据更新，不改变日程。驻留部分和上传/下载复用原累计寄存器，每拍8个INT32按整行移位，8×8上传与下载各8拍。
 - 按算术模块→PE→4×4块→8×8→32×32分层；CSA版PE内为乘法和两数压缩，最终CPA由4×4共享；普通版PE为乘法加单拍普通累加；A/B直达PE，水平及上下行通道由4×4块管理。
 - 不修改 `model/SA_model.py`，除非用户明确授权。

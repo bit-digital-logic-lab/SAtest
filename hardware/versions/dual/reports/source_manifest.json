@@ -1,0 +1,11 @@
+{
+  "hardware/rtl/kwt_block32.sv": "faddc7c16fc19c0b09fbfe51f77e319904d434fa7e36e1ebda70c5a0908511c7",
+  "hardware/rtl/kwt_interfaces.sv": "eb01c08a51fa6f83febc0522b4ea6c1de77895417c602f16699ca316cde91279",
+  "hardware/rtl/kwt_mul.sv": "8eea997970e4e31259ceda4c81bd2aeaaa522ec3fddad6754b8ece6643eaa172",
+  "hardware/synth/kwt_core_synth.sv": "be1eeb69aeac7eaf2867a7f7e7efb0c8dce69cfa78129bd10fb82a05f7158cf8",
+  "hardware/versions/dual/rtl/kwt_acc28.sv": "5580b5b2fbe1fef006f7b8186103f97e816a5ee7f7b1dcf1c2a53cb81e614906",
+  "hardware/versions/dual/rtl/kwt_array_dual.sv": "5ffb83d28c14634749af314f1e4400f520bb932d8a95bc19c0c3b3351b79e542",
+  "hardware/versions/dual/rtl/kwt_csa28.sv": "15931fd957cf35b88e994e9216e03d0bbd5a6b9ef6eabb5a4ff04e4639c1ea7f",
+  "hardware/versions/dual/rtl/kwt_dual4x4.sv": "c18cc82ac0e026e21afe968adf0ec377ad89cee3e69e4220ed23080833038f8b",
+  "hardware/versions/dual/rtl/kwt_pe_dual.sv": "f81e215817e09d613062e46977667de065d4c9f72721fed31727ec22c7cca4c8"
+}

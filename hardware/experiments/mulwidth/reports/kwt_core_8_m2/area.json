@@ -1,0 +1,20 @@
+{
+  "top": "kwt_core_8_m2",
+  "rows": 8,
+  "cols": 8,
+  "multipliers_per_pe": 2,
+  "outputs": 64,
+  "macs_per_cycle": 128,
+  "area_mm2": 0.32973528,
+  "cells": 152708,
+  "setup_slack_ns": 2.408936,
+  "tns_ns": 0.0,
+  "area_per_mac_um2": 2576.056875,
+  "operand_bits_per_cycle": 352,
+  "operand_bits_per_mac": 2.75,
+  "tile_storage_bits_k64": 13056,
+  "storage_bits_per_mac": 102.0,
+  "tile_count_8rowstrips": 416,
+  "run_cycles_per_layer": 13312,
+  "linear_fmax_mhz": 234.866899362352
+}

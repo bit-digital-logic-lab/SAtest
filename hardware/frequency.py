@@ -9,7 +9,7 @@ def scan(source: Path, target: Path, frequencies: list[float]) -> dict:
     """网表只读一次，各频率重新施加完整SDC并输出时序；额外验证估计边界两侧。"""
     original=json.loads((source/'result.json').read_text())
     mapped_mhz=original.get('frequency_mhz',150.0)
-    block_cycles=864 if original['version']=='normal' else 1024
+    block_cycles={'csa':1024,'normal':864,'dual':608}[original['version']]
     layer_cycles=64*block_cycles
     limit=1000/(1000/mapped_mhz-original['worst_setup_slack_ns'])
     frequencies=sorted(set([*frequencies,mapped_mhz,float(math.floor(limit)),float(math.floor(limit)+1)]))
@@ -48,7 +48,7 @@ def main() -> int:
     """只扫描选定版本已有核心/模块网表，输出目录独立于映射目录。"""
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--mapping',type=Path,required=True)
-    p.add_argument('--version',default='csa',choices=['csa','normal'])
+    p.add_argument('--version',default='csa',choices=['csa','normal','dual'])
     p.add_argument('--output',type=Path,required=True)
     p.add_argument('--frequencies',type=float,nargs='+',default=[150,200,250,300,350,400])
     a=p.parse_args();result=[]

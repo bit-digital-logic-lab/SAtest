@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / '.build/synth150'
 LIB = Path('/home/yang/yosys-sta/pdk/icsprout55/IP/STD_cell/ics55_LLSC_H7C_V1p10C100/ics55_LLSC_H7CL/liberty/ics55_LLSC_H7CL_ss_rcworst_1p08_125_nldm.lib')
 STA = Path(shutil.which('sta') or str(ROOT / '.build/tools/opensta/usr/bin/sta'))
-VERSIONS = ['csa','normal']
+VERSIONS = ['csa','normal','dual']
 FREQUENCY_MHZ = 150.0
 
 
@@ -73,6 +73,7 @@ def measure(scope, version, areas, reuse=False):
     sources += [ROOT/'hardware/synth/kwt_core_synth.sv']
     (target/'abc.constr').write_text('set_driving_cell BUFX0P5H7L\nset_load 10\n')
     parameters = f'-GTAIL_CYCLES={10 if version=="csa" else 0}' if scope=='block' else ''
+    parameters += f' -GK_LANES={2 if version=="dual" else 1}'
     script = f'''read_slang --top {top} {parameters} {' '.join(map(str,sources))}
 synth -top {top} -flatten -noabc
 dfflibmap -liberty {LIB}

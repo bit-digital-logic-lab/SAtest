@@ -1,0 +1,17 @@
+{
+  "hardware/experiments/mulwidth/rtl/kwt_csa3.sv": "d4d2d774cccddc92e1fcc312468ee1d294c0f72a314160ff2b069ea3143e2893",
+  "hardware/experiments/mulwidth/rtl/kwt_flat16.sv": "1a42d2555f943311abca98f319d61b416cb3891b702a3745a6341421bb652863",
+  "hardware/experiments/mulwidth/rtl/kwt_flat_core.sv": "50e75ea0ebead9bedfc192080b789e1782521fec607454fd1160910af175ae43",
+  "hardware/experiments/mulwidth/rtl/kwt_pe_m1.sv": "0c432d721d65fabf9af03da6f736ae04811db9443c85c3e23c37548a873e24ae",
+  "hardware/experiments/mulwidth/rtl/kwt_pe_m4.sv": "8b4e569ba201ffadc947f85862230f35d3527165d57e3c288d727433851ac8d8",
+  "hardware/experiments/mulwidth/rtl/kwt_pe_m8.sv": "8f0b715933a00e6bb13fc0b7a6840ba1fa305774f211c81efd13bc38ed48f974",
+  "hardware/experiments/mulwidth/rtl/kwt_requant8.sv": "ce38709f4bb6ac85628ee6475d9721ccc88a4934d9f06bf7d16f35372e61040c",
+  "hardware/experiments/mulwidth/rtl/requant8_reg.sv": "df8c98510d2f41e899fbaf1fceeab85233b53fac81582b870e77de6a28c35944",
+  "hardware/rtl/kwt_interfaces.sv": "eb01c08a51fa6f83febc0522b4ea6c1de77895417c602f16699ca316cde91279",
+  "hardware/rtl/kwt_mul.sv": "8eea997970e4e31259ceda4c81bd2aeaaa522ec3fddad6754b8ece6643eaa172",
+  "hardware/versions/dual/rtl/kwt_acc28.sv": "5580b5b2fbe1fef006f7b8186103f97e816a5ee7f7b1dcf1c2a53cb81e614906",
+  "hardware/versions/dual/rtl/kwt_array_dual.sv": "5ffb83d28c14634749af314f1e4400f520bb932d8a95bc19c0c3b3351b79e542",
+  "hardware/versions/dual/rtl/kwt_csa28.sv": "15931fd957cf35b88e994e9216e03d0bbd5a6b9ef6eabb5a4ff04e4639c1ea7f",
+  "hardware/versions/dual/rtl/kwt_dual4x4.sv": "c18cc82ac0e026e21afe968adf0ec377ad89cee3e69e4220ed23080833038f8b",
+  "hardware/versions/dual/rtl/kwt_pe_dual.sv": "f81e215817e09d613062e46977667de065d4c9f72721fed31727ec22c7cca4c8"
+}

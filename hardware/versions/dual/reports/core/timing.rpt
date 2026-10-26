@@ -1,0 +1,80 @@
+Startpoint: rst_n (input port clocked by clk)
+Endpoint: u143801 (recovery check against rising-edge clock clk)
+Path Group: **async_default**
+Path Type: max
+
+        Cap        Slew       Delay        Time   Description
+---------------------------------------------------------------------------------------
+               0.100000    0.000000    0.000000   clock clk (rise edge)
+                           0.000000    0.000000   clock network delay (ideal)
+                           0.500000    0.500000 ^ input external delay
+  17.034462    0.100000    0.000000    0.500000 ^ rst_n (in)
+               0.100000    0.000000    0.500000 ^ u143801/RN (DFFRQX2H7L)
+                                       0.500000   data arrival time
+
+               0.100000    6.666667    6.666667   clock clk (rise edge)
+                           0.000000    6.666667   clock network delay (ideal)
+                          -0.100000    6.566667   clock uncertainty
+                           0.000000    6.566667   clock reconvergence pessimism
+                                       6.566667 ^ u143801/CK (DFFRQX2H7L)
+                           0.022498    6.589165   library recovery time
+                                       6.589165   data required time
+---------------------------------------------------------------------------------------
+                                       6.589165   data required time
+                                      -0.500000   data arrival time
+---------------------------------------------------------------------------------------
+                                       6.089165   slack (MET)
+
+
+Startpoint: u155851 (rising edge-triggered flip-flop clocked by clk)
+Endpoint: u150653 (rising edge-triggered flip-flop clocked by clk)
+Path Group: clk
+Path Type: max
+
+        Cap        Slew       Delay        Time   Description
+---------------------------------------------------------------------------------------
+               0.100000    0.000000    0.000000   clock clk (rise edge)
+                           0.000000    0.000000   clock network delay (ideal)
+               0.100000    0.000000    0.000000 ^ u155851/CK (DFFRQX2H7L)
+   0.001482    0.057639    0.177438    0.177438 ^ u155851/Q (DFFRQX2H7L)
+   0.006716    0.129901    0.116742    0.294180 ^ u59595/Y (BUFX1P4H7L)
+   0.001956    0.061651    0.140324    0.434504 ^ u59750/Y (AND3X1P4H7L)
+   0.000806    0.068058    0.037045    0.471549 v u59751/Y (NOR2X0P5H7L)
+   0.002725    0.099500    0.263899    0.735449 ^ u59754/Y (XOR3X0P5H7L)
+   0.002711    0.117658    0.112411    0.847860 v u59759/Y (OAOI211X0P5H7L)
+   0.002890    0.317636    0.251282    1.099142 ^ u59770/Y (OAOI211X0P5H7L)
+   0.002029    0.125838    0.150946    1.250088 v u59778/Y (OAOI211X0P5H7L)
+   0.002922    0.320414    0.255027    1.505115 ^ u59783/Y (OAOI211X0P5H7L)
+   0.002029    0.160856    0.152934    1.658049 v u59786/Y (AOI211X0P5H7L)
+   0.002175    0.256172    0.228220    1.886268 ^ u59794/Y (OAOI211X0P5H7L)
+   0.002029    0.117765    0.141117    2.027386 v u59796/Y (OAOI211X0P5H7L)
+   0.002922    0.320414    0.252859    2.280245 ^ u59801/Y (OAOI211X0P5H7L)
+   0.002063    0.161799    0.153895    2.434140 v u59804/Y (AOI211X0P5H7L)
+   0.002172    0.258488    0.209933    2.644073 ^ u59806/Y (OAI31X0P5H7L)
+   0.002023    0.118015    0.141467    2.785540 v u59808/Y (OAOI211X0P5H7L)
+   0.002922    0.320410    0.252923    3.038463 ^ u59813/Y (OAOI211X0P5H7L)
+   0.002198    0.165512    0.157639    3.196102 v u59817/Y (AOI211X0P5H7L)
+   0.002161    0.257520    0.210429    3.406531 ^ u59819/Y (OAI31X0P5H7L)
+   0.002034    0.118157    0.141535    3.548066 v u59822/Y (OAOI211X0P5H7L)
+   0.002199    0.258237    0.217916    3.765982 ^ u59830/Y (OAOI211X0P5H7L)
+   0.001524    0.099352    0.122983    3.888965 v u141995/Y (OAI21X0P5H7L)
+   0.000678    0.042540    0.133491    4.022456 ^ u141999/Y (XNOR2X0P5H7L)
+   0.000846    0.083978    0.082065    4.104521 v u142002/Y (AOAI211X0P5H7L)
+   0.001005    0.026071    0.078277    4.182798 v u142003/Y (BUFX1P4H7L)
+               0.026071    0.000000    4.182798 v u150653/D (DFFRQX2H7L)
+                                       4.182798   data arrival time
+
+               0.100000    6.666667    6.666667   clock clk (rise edge)
+                           0.000000    6.666667   clock network delay (ideal)
+                          -0.100000    6.566667   clock uncertainty
+                           0.000000    6.566667   clock reconvergence pessimism
+                                       6.566667 ^ u150653/CK (DFFRQX2H7L)
+                          -0.068271    6.498396   library setup time
+                                       6.498396   data required time
+---------------------------------------------------------------------------------------
+                                       6.498396   data required time
+                                      -4.182798   data arrival time
+---------------------------------------------------------------------------------------
+                                       2.315598   slack (MET)
+
+

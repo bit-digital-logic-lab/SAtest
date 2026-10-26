@@ -1,0 +1,42 @@
+[
+  {
+    "top": "tb_kwt_pe_m4",
+    "compile_exit": 0,
+    "run_exit": 0,
+    "markers": [
+      "PE_PASS top=kwt_pe_m4 checks=775 valid_accs=700 zero_holds=32 loads=5 errors=0"
+    ]
+  },
+  {
+    "top": "tb_kwt_pe_m8",
+    "compile_exit": 0,
+    "run_exit": 0,
+    "markers": [
+      "PE_PASS top=kwt_pe_m8 checks=775 valid_accs=700 zero_holds=32 loads=5 errors=0"
+    ]
+  },
+  {
+    "top": "tb_kwt_pe_m1",
+    "compile_exit": 0,
+    "run_exit": 0,
+    "markers": [
+      "PE_PASS checks=610 mul_cases=600 stages=3 acc_bits=28"
+    ]
+  },
+  {
+    "top": "tb_kwt_flat16",
+    "compile_exit": 0,
+    "run_exit": 0,
+    "markers": [
+      "FLAT16_PASS checks=20736 errs=0 cases=6 k=8 pe=256"
+    ]
+  },
+  {
+    "top": "tb_requant8",
+    "compile_exit": 0,
+    "run_exit": 0,
+    "markers": [
+      "REQUANT_PASS checks=2000 errors=0"
+    ]
+  }
+]

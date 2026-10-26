@@ -1,30 +1,43 @@
-# SAtest：8×8矩阵计算阵列
+# SAtest：量化矩阵阵列
 
-当前保留用户指定的两个版本，共用A12W10、三拍乘法器、INT32回绕、8拍整行部分和输入/输出、固定节拍及8bank C存储。
+A12W10，模块按算术→PE→4×4→8×8→32×32分层；A/B独立输入，interface连接部分和。正式阵列按固定节拍执行，无内部反压，8×8旧和上传和结果排出各8拍、每拍8个字。
 
-- [CSA版本](hardware/versions/csa/README.md)：PE内驻留sum/carry，每个4×4共享四路两拍最终加法器。
-- [普通版本](hardware/versions/normal/README.md)：每个PE用单拍普通32位加法直接累加，无三压二、carry寄存器或最终共享加法。
+## 正式版本与选择
 
-每个版本目录内均有自己的RTL、面积和150MHz时序报告。`hardware/rtl/`只放共用接口、乘法器及32×32控制器；编译脚本只读取所选版本目录，同名模块不会混合。
+| 版本 | 优势 | 主要代价 | 适用方向 |
+| --- | --- | --- | --- |
+| **[CSA切分流水、集中最终加法](hardware/versions/csa/README.md)** | PE反馈只做3:2；每4×4共享4路两拍CPA，已测300MHz预布局通过 | sum/carry双份状态，末尾10拍收尾；150MHz面积和周期不如普通版 | 压缩累加、高频和共享加法研究，重点保留 |
+| [普通单拍累加](hardware/versions/normal/README.md) | 150MHz三个完整模块中面积最小，结构直接、无最终收尾 | 每拍反馈经过32位CPA，单K吞吐 | 面积、可读性和低供数预算的基线 |
+| [双独立乘法E2](hardware/versions/dual/README.md) | 每PE两个三级乘法器，完整任务608拍，计算最快 | 双倍A/B带宽，面积增加；ACC28 | 保留8×8布局，提高K并行度 |
+
+CSA/普通版是ACC32回绕，双乘版为ACC28回绕，均非手写模型的38位饱和协议。三个版本各有源码、数值验证、周期、面积和时序报告；[统一结果表](reports/README.md)区分核心与含存储模块。
+
+## CSA重点入口
+
+[PE](hardware/versions/csa/rtl/kwt_pe_csa.sv) → [驻留三压二](hardware/versions/csa/rtl/kwt_csa32.sv) → [4×4集中加法与行通道](hardware/versions/csa/rtl/kwt_quad4x4.sv) → [低16/高16两拍CPA](hardware/versions/csa/rtl/kwt_row_adder.sv) → [8×8固定日程](hardware/versions/csa/rtl/kwt_array_quad.sv)。集中指每4×4四路共享，不是整个阵列仅一个累加器。
+
+## 实验候选
+
+[4/8乘PE、16×16/16×32扩展、16位输出和K64驻留模型](hardware/experiments/mulwidth/README.md)集中保存在`hardware/experiments/mulwidth/`。每个候选写明优势、带宽代价、测量范围；原始日志压缩保存，构建目录不提交。
+
+```text
+hardware/rtl/          共用接口、三级乘法器、32×32块存储与调度
+hardware/versions/     csa / normal / dual，各自RTL、README与reports
+hardware/experiments/  独立候选源码、测试和测量快照
+hardware/tb/           正式32×32与整层回归台
+software/              A12W10参考、冻结参数与验证样本
+model/SA_model.py      用户手写原稿，保持不动
+reports/               跨版本对照和历史测量入口
+```
+
+## 复现
 
 ```bash
 python3 hardware/run.py --version all --full --synth
-python3 hardware/synth.py --version all --scope all
+python3 hardware/synth.py --version csa --scope all
+python3 hardware/experiments/mulwidth/run.py
 ```
 
-也可用`--version csa`或`--version normal`单独运行。源码阅读顺序：普通版`kwt_acc32→kwt_pe_mac→kwt_quad4x4→kwt_array_quad→kwt_block32`；CSA版`kwt_csa32→kwt_pe_csa→kwt_quad4x4`及其中的`kwt_row_adder`，再向上读阵列与32×32控制。
+`--version normal`、`--version dual`可单独选择。综合使用55nm SS/1.08V/125°C库；面积为标准单元面积，未布局布线，不能作为硅片功耗或时序签核。正式周期不含主机装载、外部DMA和CPU等待；当前尚未完成NICE/SoC接入。
 
-阵列部分和接口256位，每拍连续输入/输出一整行8个INT32，共8行。C按列低3位分8个独立bank；顶层主机装载/读回仍为标量，外部DMA时间另计。bias/oldsum作为初始C装入；B跨start驻留。内部无ready/反压，零值只关闭数据更新。
-
-手写`model/SA_model.py`保持原稿，38位饱和协议与本RTL的INT32回绕不同。软件参数与验证数据在`software/`，原始比赛题目和资料继续保留。
-
-[两版实测比较](reports/README.md)。此前单拍加法实验在`reports/row8_adder150.md`及证据包，复现其旧文件布局请切换Git标签`archive/row8-csa-before-normal-20261026`。更早方案只在Git存档，不恢复到当前目录。
-
-## CSA提高频率
-
-[实际频率扫描与时间报告](hardware/versions/csa/reports/frequency/README.md)：按400MHz目标重新映射后，完整模块在实际300MHz通过预布局setup检查，65536拍一层约218.453µs；本次模块边界为308MHz通过、309MHz失败，核心单独352MHz通过。
-
-```bash
-python3 hardware/synth.py --version csa --scope all --frequency 400 --output .build/csa400
-python3 hardware/frequency.py --mapping .build/csa400 --version csa --output .build/frequency400
-```
+[CSA频率实测](hardware/versions/csa/reports/frequency/README.md)：按400MHz目标映射后，实际300MHz通过；核心352MHz、完整模块308MHz分别为本次整数MHz边界通过点。更早方案保存在Git标签，当前目录不恢复冗余旧版本。
