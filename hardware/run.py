@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""共享加法CSA的整数逐点回归与周期测量。"""
+"""CSA与普通单拍累加的整数逐点回归与周期测量。"""
 from __future__ import annotations
 
 import argparse
@@ -19,9 +19,10 @@ BUILD = ROOT / ".build" / "simulation"
 
 
 def sources_for(version: str) -> list[Path]:
-    """接口先读，其他模块统一收集；只编译当前CSA层次。"""
+    """接口先读，其他模块统一收集；只编译所选版本，两个版本的同名模块绝不混读。"""
     interface = RTL / "kwt_interfaces.sv"
-    return [interface, *sorted(p for p in RTL.rglob("*.sv") if p != interface)]
+    return [interface, *sorted(p for p in RTL.glob("*.sv") if p != interface),
+            *sorted((HW / "versions" / version / "rtl").glob("*.sv"))]
 
 
 def write_hex(path: Path, values, width: int) -> None:
@@ -95,7 +96,7 @@ def compile_version(version: str) -> tuple[Path, Path]:
     binary = out / "Vtb_kwt_block32"
     log = out / "compile.log"
     command = ["verilator", "--binary", "--timing", "--assert", "-Wno-fatal", "-j", "4",
-               "--top-module", "tb_kwt_block32",
+               "--top-module", "tb_kwt_block32", "-GTAIL_CYCLES=" + ("10" if version=="csa" else "0"),
                "--Mdir", str(out / "obj"), "-o", str(binary)]
     command += [str(path) for path in sources_for(version)] + [str(TB)]
     with log.open("w") as stream:
@@ -132,7 +133,7 @@ def synth(version: str) -> None:
     netlist = out / "kwt_block32.json"
     log = out / "synth.log"
     files = " ".join(str(path) for path in sources_for(version))
-    script = (f"read_slang --top kwt_block32 {files}; hierarchy -check -top kwt_block32; "
+    script = (f"read_slang --top kwt_block32 -GTAIL_CYCLES={10 if version=='csa' else 0} {files}; hierarchy -check -top kwt_block32; "
               f"flatten; proc; opt; wreduce; opt; check -assert; write_json {netlist}")
     with log.open("w") as stream:
         result = subprocess.run(["yosys", "-m", "slang", "-p", script], cwd=ROOT,
@@ -144,11 +145,12 @@ def synth(version: str) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--version",choices=("csa","normal","all"),default="csa")
     parser.add_argument("--full", action="store_true", help="追加12层、每层2个冻结真实样本回归")
     parser.add_argument("--synth", action="store_true", help="执行Slang/Yosys结构检查")
     parser.add_argument("--seed", type=int, default=0x8A1210)
     args = parser.parse_args()
-    versions = ["shared_csa"]
+    versions = ["csa","normal"] if args.version=="all" else [args.version]
     required = [TB]
     for version in versions:
         required.extend(sources_for(version))

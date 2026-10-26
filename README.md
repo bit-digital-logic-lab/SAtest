@@ -1,39 +1,30 @@
-# SAtest：共享行加法CSA阵列
+# SAtest：8×8矩阵计算阵列
 
-当前只保留一套RTL：8×8阵列由四个4×4块组成，64个A12W10乘法器；PE内驻留sum/carry，每个4×4共享四路两拍最终加法器。相邻两块交替完成最终加法，结果写回原PE；部分和每拍8个INT32整行传输，输入与输出各8拍。内部按固定时钟执行，无反压。
+当前保留用户指定的两个版本，共用A12W10、三拍乘法器、INT32回绕、8拍整行部分和输入/输出、固定节拍及8bank C存储。
 
-## 工程目录
+- [CSA版本](hardware/versions/csa/README.md)：PE内驻留sum/carry，每个4×4共享四路两拍最终加法器。
+- [普通版本](hardware/versions/normal/README.md)：每个PE用单拍普通32位加法直接累加，无三压二、carry寄存器或最终共享加法。
 
-- `hardware/rtl/`：8个RTL文件，接口、乘法器、压缩器、PE、行加法器、4×4、8×8、32×32顶层。
-- `hardware/tb/`：逐点验证和固定周期检查。
-- `hardware/run.py`：功能回归入口。
-- `hardware/synth.py`、`hardware/synth/`：150MHz映射与时序入口、核心封装。
-- `model/SA_model.py`：手写参考模型，保持原稿。
-- `software/`：量化参数、真实验证数据和软件模型。
-- `reports/`：当前方案测量摘要。
-- `题目/`、`资料/`：原始比赛题目与参考资料。
-
-数据流：`kwt_block32` → `kwt_array_quad` → `kwt_quad4x4` → `kwt_pe_csa` → `kwt_mul` / `kwt_csa32`；`kwt_quad4x4`内的`kwt_row_adder`负责最终两数相加。模块之间的部分和通道由`kwt_interfaces.sv`定义，A12与B10使用独立输入端口。
-
-## 运行
+每个版本目录内均有自己的RTL、面积和150MHz时序报告。`hardware/rtl/`只放共用接口、乘法器及32×32控制器；编译脚本只读取所选版本目录，同名模块不会混合。
 
 ```bash
-python3 hardware/run.py --full --synth
-python3 hardware/synth.py --scope all
+python3 hardware/run.py --version all --full --synth
+python3 hardware/synth.py --version all --scope all
 ```
 
-仿真结果在`.build/simulation/`，映射结果在`.build/synth150/`。`--full`覆盖12层各2个真实样本，另含随机尾块、零值、稀疏、补码极值和驻留重复累计。综合使用本机ICsprout55库与OpenSTA，库/工具位置见`hardware/synth.py`。
+也可用`--version csa`或`--version normal`单独运行。源码阅读顺序：普通版`kwt_acc32→kwt_pe_mac→kwt_quad4x4→kwt_array_quad→kwt_block32`；CSA版`kwt_csa32→kwt_pe_csa→kwt_quad4x4`及其中的`kwt_row_adder`，再向上读阵列与32×32控制。
 
-阵列部分和接口为256位：每拍一行8个INT32，按第0～7行连续输入/输出。C存储按列低3位划分8个bank，各bank每拍提供一个字；顶层现有主机装载/读回接口仍为标量，外部DMA时间另计。
+阵列部分和接口256位，每拍连续输入/输出一整行8个INT32，共8行。C按列低3位分8个独立bank；顶层主机装载/读回仍为标量，外部DMA时间另计。bias/oldsum作为初始C装入；B跨start驻留。内部无ready/反压，零值只关闭数据更新。
 
-每个32×32块执行`C += A×B`，B跨任务保留；bias由外部作为初始C装入，DMA负责全局边界与补零。RTL采用INT32回绕，手写Python模型的38位饱和规则另行保留。
+手写`model/SA_model.py`保持原稿，38位饱和协议与本RTL的INT32回绕不同。软件参数与验证数据在`software/`，原始比赛题目和资料继续保留。
 
-当前32×32任务1024拍，99×64×256层65536拍（不含外部DMA搬运）。面积、时序及估计功耗见[当前测量摘要](reports/README.md)。
+[两版实测比较](reports/README.md)。此前单拍加法实验在`reports/row8_adder150.md`及证据包，复现其旧文件布局请切换Git标签`archive/row8-csa-before-normal-20261026`。更早方案只在Git存档，不恢复到当前目录。
 
-## 旧版存档
+## CSA提高频率
 
-其他方案和原始对比报告仅保存在Git标签`archive/all-strategies-before-cleanup-20261025`，不在当前目录保留副本；旧逐PE加法CSA标签为`csa-per-pe`，共享CSA初版为`csa-shared-row`。
+[实际频率扫描与时间报告](hardware/versions/csa/reports/frequency/README.md)：按400MHz目标重新映射后，完整模块在实际300MHz通过预布局setup检查，65536拍一层约218.453µs；本次模块边界为308MHz通过、309MHz失败，核心单独352MHz通过。
 
 ```bash
-git show archive/all-strategies-before-cleanup-20261025:reports/csa_compare/README.md
+python3 hardware/synth.py --version csa --scope all --frequency 400 --output .build/csa400
+python3 hardware/frequency.py --mapping .build/csa400 --version csa --output .build/frequency400
 ```

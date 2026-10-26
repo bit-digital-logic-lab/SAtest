@@ -1,3 +1,5 @@
+> 历史报告：对应Git标签 `archive/row8-csa-before-normal-20261026` 的源码布局。当前两版报告位于 `hardware/versions/`。
+
 # 8拍整行部分和与150MHz单拍加法实验
 
 本轮主线将8×8部分和改为每拍8个INT32整行传输，输入与输出各8拍；共享行加法器仍使用两拍实现。单拍加法由本地OpenCode配置`opencode-go/deepseek-v4.1-flash`生成实验，主审重新编译测试，并用独立流程重新映射和执行STA。

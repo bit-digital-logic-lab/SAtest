@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""共享加法CSA在55nm SS库、150MHz目标下的标准单元映射、OpenSTA时序及翻转率功耗估计；结果保存在.build/synth150。"""
+"""CSA与普通累加版本在55nm SS库、指定频率目标下的标准单元映射、OpenSTA时序及翻转率功耗估计；结果保存在.build/synth150。"""
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import shutil
@@ -14,7 +14,8 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / '.build/synth150'
 LIB = Path('/home/yang/yosys-sta/pdk/icsprout55/IP/STD_cell/ics55_LLSC_H7C_V1p10C100/ics55_LLSC_H7CL/liberty/ics55_LLSC_H7CL_ss_rcworst_1p08_125_nldm.lib')
 STA = Path(shutil.which('sta') or str(ROOT / '.build/tools/opensta/usr/bin/sta'))
-VERSIONS = ['shared_csa']
+VERSIONS = ['csa','normal']
+FREQUENCY_MHZ = 150.0
 
 
 def run_logged(command, log):
@@ -62,18 +63,20 @@ def scalar_netlist(module, top, path):
 
 
 def measure(scope, version, areas, reuse=False):
-    """独立映射一个核心或整块，随后按相同6.667ns时钟执行STA。"""
+    """独立映射一个核心或整块，随后按指定目标时钟执行STA。"""
     target = OUT / scope / version
     target.mkdir(parents=True, exist_ok=True)
     top = 'kwt_core_synth' if scope=='core' else 'kwt_block32'
     sources = [ROOT/'hardware/rtl/kwt_interfaces.sv']
     sources += sorted(p for p in (ROOT/'hardware/rtl').rglob('*.sv') if p!=sources[0])
+    sources += sorted((ROOT/'hardware/versions'/version/'rtl').glob('*.sv'))
     sources += [ROOT/'hardware/synth/kwt_core_synth.sv']
     (target/'abc.constr').write_text('set_driving_cell BUFX0P5H7L\nset_load 10\n')
-    script = f'''read_slang --top {top} {' '.join(map(str,sources))}
+    parameters = f'-GTAIL_CYCLES={10 if version=="csa" else 0}' if scope=='block' else ''
+    script = f'''read_slang --top {top} {parameters} {' '.join(map(str,sources))}
 synth -top {top} -flatten -noabc
 dfflibmap -liberty {LIB}
-abc -liberty {LIB} -D 6666.667 -constr {target/'abc.constr'}
+abc -liberty {LIB} -D {1e6/FREQUENCY_MHZ:.3f} -constr {target/'abc.constr'}
 clean
 hilomap -singleton -hicell TIEHIH7L Z -locell TIELOH7L Z
 setundef -zero
@@ -103,7 +106,7 @@ write_json {target/'netlist.json'}
     # 输入/输出各预留0.5ns，输入转换0.1ns，输出负载0.01pF，时钟不确定性0.1ns。
     inputs=[name for name,direction in ports if direction=='input' and name!='clk']
     outputs=[name for name,direction in ports if direction=='output']
-    sdc='create_clock -name clk -period 6.666667 [get_ports clk]\nset_clock_uncertainty 0.1 [get_clocks clk]\n'
+    sdc=f'create_clock -name clk -period {1000/FREQUENCY_MHZ:.6f} [get_ports clk]\nset_clock_uncertainty 0.1 [get_clocks clk]\n'
     for port in inputs:
         sdc+=f'set_input_delay 0.5 -clock clk [get_ports {{{port}}}]\nset_input_transition 0.1 [get_ports {{{port}}}]\n'
     for port in outputs:
@@ -133,7 +136,7 @@ exit
     timing=timing_result(target,top)
     result={'scope':scope,'version':version,'top':top,'cells':sum(counts.values()),'area_um2':area,
         'area_mm2':area/1e6,'cell_types':counts,'seconds':time.monotonic()-begin,'directory':str(target),
-        'lib_sha256':hashlib.sha256(LIB.read_bytes()).hexdigest(), **timing}
+        'lib_sha256':hashlib.sha256(LIB.read_bytes()).hexdigest(), 'frequency_mhz':FREQUENCY_MHZ, **timing}
     (target/'result.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n')
     return result
 
@@ -150,26 +153,33 @@ def timing_result(target, top):
         row=next(line for line in report.splitlines() if line.strip().startswith('Total'))
         values=[float(value) for value in row.split()[1:5]]
         power[activity]={'internal_W':values[0],'switching_W':values[1],'leakage_W':values[2],'total_W':values[3]}
-    return {'worst_setup_slack_ns':slack,'setup_tns_ns':tns,'meets_150mhz_pre_layout':slack>=0 and tns==0,
+    return {'worst_setup_slack_ns':slack,'setup_tns_ns':tns,'meets_target_pre_layout':slack>=0 and tns==0,
+            **({'meets_150mhz_pre_layout':slack>=0 and tns==0} if FREQUENCY_MHZ==150 else {}),
             'timing_report':str(target/'critical.rpt'),'power_estimates':power}
 
 
 def main():
     """两个独立目标并行执行，任何失败都会保留日志并返回非零状态。"""
-    global OUT
+    global OUT,FREQUENCY_MHZ
     parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--frequency',type=float,default=150.0,help='目标频率MHz，SDC与ABC映射同时调整')
     parser.add_argument('--output',type=Path,help='独立结果目录，避免覆盖其他架构快照')
+    parser.add_argument('--version',choices=[*VERSIONS,'all'],default='all')
     parser.add_argument('--scope',choices=['core','block','all'],default='all')
-    parser.add_argument('--reuse-mapped',action='store_true',help='复用当前RTL已经映射的网表，只重跑STA')
+    parser.add_argument('--reuse-mapped',action='store_true',help='仅在RTL与映射目标频率未变时复用网表，只重跑STA')
     args=parser.parse_args()
+    FREQUENCY_MHZ=args.frequency
+    if FREQUENCY_MHZ<=0: parser.error('frequency must be positive')
     if args.output: OUT=args.output.resolve()
+    elif FREQUENCY_MHZ!=150: OUT=ROOT/'.build'/f'synth{FREQUENCY_MHZ:g}'
     areas={name:float(area) for name,area in re.findall(r'cell\s*\(([^)]+)\)\s*\{.*?\barea\s*:\s*([0-9.eE+-]+)',LIB.read_text(),re.S)}
     scopes=['core','block'] if args.scope=='all' else [args.scope]
-    versions=VERSIONS
+    versions=VERSIONS if args.version=='all' else [args.version]
     OUT.mkdir(parents=True,exist_ok=True)
     manifest={str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest()
               for p in sorted((ROOT/'hardware/rtl').rglob('*.sv'))}
     manifest['hardware/synth/kwt_core_synth.sv']=hashlib.sha256((ROOT/'hardware/synth/kwt_core_synth.sv').read_bytes()).hexdigest()
+    manifest.update({str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for version in versions for p in sorted((ROOT/'hardware/versions'/version/'rtl').glob('*.sv'))})
     (OUT/'source_manifest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n')
     results=[]; failures=[]
     with ThreadPoolExecutor(max_workers=2) as pool:
@@ -177,7 +187,7 @@ def main():
         for job in as_completed(jobs):
             try:
                 result=job.result(); results.append(result)
-                print(f"MAPPED {result['scope']}/{result['version']} area={result['area_um2']:.3f}um2 cells={result['cells']}",flush=True)
+                print(f"MAPPED {result['scope']}/{result['version']} area={result['area_um2']:.3f}um2 cells={result['cells']} slack={result['worst_setup_slack_ns']:.6f}ns target_met={result.get('meets_target_pre_layout',result.get('meets_150mhz_pre_layout'))}",flush=True)
             except Exception as exc:
                 failures.append({'target':jobs[job],'error':str(exc)})
                 print(f'FAILED {jobs[job]} {exc}',flush=True)

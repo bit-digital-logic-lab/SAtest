@@ -1,0 +1,74 @@
+Startpoint: rst_n (input port clocked by clk)
+Endpoint: u332749 (recovery check against rising-edge clock clk)
+Path Group: **async_default**
+Path Type: max
+
+        Cap        Slew       Delay        Time   Description
+---------------------------------------------------------------------------------------
+               0.100000    0.000000    0.000000   clock clk (rise edge)
+                           0.000000    0.000000   clock network delay (ideal)
+                           0.500000    0.500000 ^ input external delay
+  13.993832    0.100000    0.000000    0.500000 ^ rst_n (in)
+               0.100000    0.000000    0.500000 ^ u332749/RN (DFFRQX2H7L)
+                                       0.500000   data arrival time
+
+               0.100000    3.246753    3.246753   clock clk (rise edge)
+                           0.000000    3.246753   clock network delay (ideal)
+                          -0.100000    3.146753   clock uncertainty
+                           0.000000    3.146753   clock reconvergence pessimism
+                                       3.146753 ^ u332749/CK (DFFRQX2H7L)
+                           0.022498    3.169251   library recovery time
+                                       3.169251   data required time
+---------------------------------------------------------------------------------------
+                                       3.169251   data required time
+                                      -0.500000   data arrival time
+---------------------------------------------------------------------------------------
+                                       2.669251   slack (MET)
+
+
+Startpoint: u339239 (rising edge-triggered flip-flop clocked by clk)
+Endpoint: c_data_28_ (output port clocked by clk)
+Path Group: clk
+Path Type: max
+
+        Cap        Slew       Delay        Time   Description
+---------------------------------------------------------------------------------------
+               0.100000    0.000000    0.000000   clock clk (rise edge)
+                           0.000000    0.000000   clock network delay (ideal)
+               0.100000    0.000000    0.000000 ^ u339239/CK (DFFRQX2H7L)
+   0.000847    0.046722    0.168451    0.168451 ^ u339239/Q (DFFRQX2H7L)
+   0.006657    0.078874    0.095625    0.264076 ^ u47/Y (BUFX3H7L)
+   0.013078    0.089063    0.105060    0.369136 ^ u48/Y (BUFX5H7L)
+   0.009162    0.103002    0.123863    0.492998 ^ u49/Y (BUFX3H7L)
+   0.012777    0.119080    0.127283    0.620281 ^ u50/Y (BUFX3P5H7L)
+   0.009567    0.107385    0.134677    0.754959 ^ u51/Y (BUFX3H7L)
+   0.009311    0.104654    0.130283    0.885242 ^ u52/Y (BUFX3H7L)
+   0.002009    0.060705    0.114986    1.000228 ^ u54/Y (AO21X1H7L)
+   0.008566    0.083485    0.095288    1.095516 ^ u189/Y (BUFX3P5H7L)
+   0.010457    0.115669    0.128646    1.224162 ^ u285/Y (BUFX3H7L)
+   0.017178    0.181589    0.173386    1.397547 ^ u830/Y (BUFX3H7L)
+   0.013140    0.245373    0.206451    1.603998 ^ u5538/Y (BUFX1P4H7L)
+   0.000837    0.100366    0.112415    1.716413 v u7301/Y (OAI211X0P7H7L)
+   0.000626    0.088466    0.057368    1.773781 ^ u7302/Y (OAI211X0P7H7L)
+   0.000707    0.079729    0.081716    1.855497 v u7311/Y (AOI31X0P5H7L)
+   0.000753    0.159488    0.154737    2.010234 ^ u7340/Y (AOI221X0P5H7L)
+   0.000597    0.063925    0.049679    2.059913 v u7341/Y (AOI21X0P5H7L)
+   0.001453    0.051041    0.120711    2.180624 v u7458/Y (MUX2X0P5H7L)
+   0.000846    0.066043    0.195610    2.376234 v u7460/Y (MUX4X1P4H7L)
+   0.010000    0.404128    0.260916    2.637151 ^ u8543/Y (AOI22X1P4H7L)
+               0.404128    0.000000    2.637151 ^ c_data_28_ (out)
+                                       2.637151   data arrival time
+
+               0.100000    3.246753    3.246753   clock clk (rise edge)
+                           0.000000    3.246753   clock network delay (ideal)
+                          -0.100000    3.146753   clock uncertainty
+                           0.000000    3.146753   clock reconvergence pessimism
+                          -0.500000    2.646753   output external delay
+                                       2.646753   data required time
+---------------------------------------------------------------------------------------
+                                       2.646753   data required time
+                                      -2.637151   data arrival time
+---------------------------------------------------------------------------------------
+                                       0.009603   slack (MET)
+
+

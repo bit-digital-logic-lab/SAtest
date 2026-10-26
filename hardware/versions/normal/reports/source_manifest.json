@@ -1,0 +1,10 @@
+{
+  "hardware/rtl/kwt_block32.sv": "1adaaa234fa15446bd608585e8672a44824485ef33395a1d4d91ae058b139523",
+  "hardware/rtl/kwt_interfaces.sv": "eb01c08a51fa6f83febc0522b4ea6c1de77895417c602f16699ca316cde91279",
+  "hardware/rtl/kwt_mul.sv": "8eea997970e4e31259ceda4c81bd2aeaaa522ec3fddad6754b8ece6643eaa172",
+  "hardware/synth/kwt_core_synth.sv": "19c27f4ef316ab2efe37548133540e377115520619861062b75e3fa893432404",
+  "hardware/versions/normal/rtl/kwt_acc32.sv": "4895a3e154aaba39fd89527cde00ac61f69beae068ecd0b2db98ef5bf9dc7452",
+  "hardware/versions/normal/rtl/kwt_array_quad.sv": "32c8e41c849479f60565592ed83d15dd5488ca963905df44d31e59f101c59ca1",
+  "hardware/versions/normal/rtl/kwt_pe_mac.sv": "8f854239edca7328260651d36beba22b11cc14ca2f2e0ad370d36d4935cdd37b",
+  "hardware/versions/normal/rtl/kwt_quad4x4.sv": "40d1a4334ef4c32771050fff84dd697c604bd4a7aa54ca269616e93e6debd71d"
+}

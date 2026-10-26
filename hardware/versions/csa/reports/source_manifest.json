@@ -1,0 +1,11 @@
+{
+  "hardware/rtl/kwt_block32.sv": "1adaaa234fa15446bd608585e8672a44824485ef33395a1d4d91ae058b139523",
+  "hardware/rtl/kwt_interfaces.sv": "eb01c08a51fa6f83febc0522b4ea6c1de77895417c602f16699ca316cde91279",
+  "hardware/rtl/kwt_mul.sv": "8eea997970e4e31259ceda4c81bd2aeaaa522ec3fddad6754b8ece6643eaa172",
+  "hardware/synth/kwt_core_synth.sv": "19c27f4ef316ab2efe37548133540e377115520619861062b75e3fa893432404",
+  "hardware/versions/csa/rtl/kwt_array_quad.sv": "958a6dfac26a64b2b1edc1c57a4ccdb7a94a1067b9d4ba0ed2da8b57e9d042ea",
+  "hardware/versions/csa/rtl/kwt_csa32.sv": "53fc0b546db3c2631569ce631461f2d37cd4b9565d3f376cf7c7323792a57da5",
+  "hardware/versions/csa/rtl/kwt_pe_csa.sv": "0a157fbb04c5f67e8b4924cbad2bef3a7dbdd8a0789679ecb2ddb8b8eab183ed",
+  "hardware/versions/csa/rtl/kwt_quad4x4.sv": "7f4268ed5fc5574cf3644194ccb848ee5972298152974df72f2d65801a60ff74",
+  "hardware/versions/csa/rtl/kwt_row_adder.sv": "68a7cfd43dec5df5b6456bfba0b1870506243c2e68c2571af3d372fee3725376"
+}

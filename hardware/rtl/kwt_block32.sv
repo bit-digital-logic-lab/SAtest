@@ -1,6 +1,7 @@
-// 三个32×32块的存储和调度：C←C+A×B；通过interface驱动8×8共享加法CSA阵列。
+// 三个32×32块的存储和调度：C←C+A×B；通过interface驱动所选版本的8×8阵列。
 // 上层/DMA负责补零和搬运；B保留到下次显式装载，C也可保留供下一次累计。
-module kwt_block32 (
+module kwt_block32 #(parameter int TAIL_CYCLES=10 // CSA收尾10拍；普通累加无收尾，设为0
+) (
     input logic clk, rst_n,           // 时钟、低有效异步复位
     input logic a_load_valid,         // A端口写入有效，与B端口独立
     input logic [9:0] a_load_addr,    // A块行优先地址
@@ -22,10 +23,9 @@ module kwt_block32 (
         RUN,   // 连续提交32个K向量
         WAIT,  // 固定等待末向量的算术流水
         FLUSH, // 发出部分和排空命令
-        TAIL,  // 三压二固定十拍尾项收尾
+        TAIL,  // 可选最终加法收尾，普通版跳过
         STORE  // 固定8拍下载，写回C块
     } state_t;
-    localparam int TAIL_CYCLES=10; // flush后：两块交替四行共8拍，加2拍固定收尾余量。
     localparam int LAST_WAIT=5; // 末向量发射后到压缩完成的固定拍数。
     logic [3:0] wait_count;           // 末向量等待/尾项收尾的固定计数
     state_t state;                     // 当前块调度阶段
@@ -40,8 +40,8 @@ module kwt_block32 (
     logic [79:0] b_cols;              // B独立广播总线，8列×10位
     kwt_array_if array_bus();          // 仅连接控制与部分和，不混入A/B数据
 
-    // 固定连接唯一CSA阵列，不保留旧架构选择分支。
-    kwt_array_quad #(.TAIL_CYCLES(TAIL_CYCLES)) u_array(.clk(clk),.rst_n(rst_n),
+    // 连接编译时选定的阵列版本，算术模块不混用。
+    kwt_array_quad u_array(.clk(clk),.rst_n(rst_n),
         .a_rows(a_rows),.b_cols(b_cols),.bus(array_bus));
 
     assign busy = state!=IDLE; // 整个块任务未回到空闲阶段就保持忙。
@@ -79,7 +79,7 @@ module kwt_block32 (
         end
     end
 
-    // 固定日程：上传8拍→32组向量连续发射→末向量等待→flush→CSA十拍收尾→下载8拍。
+    // 固定日程：上传8拍→32组向量连续发射→末向量等待→flush→按版本收尾→下载8拍。
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin // 只复位控制，三个矩阵块随后由外部显式装载。
             state<=IDLE; tile_i<=0; tile_j<=0; slot<=0; k<=0;
@@ -104,9 +104,10 @@ module kwt_block32 (
                     else wait_count<=wait_count-1'b1; // 每拍递减，不读取busy/ready。
                 end
                 FLUSH: begin // 向阵列发出一拍排空命令。
-                    state<=TAIL; wait_count<=4'(TAIL_CYCLES); // 按行完成共享CPA后再下载。
+                    if(TAIL_CYCLES==0) state<=STORE; // 普通累加无剩余carry，直接下载。
+                    else begin state<=TAIL; wait_count<=4'(TAIL_CYCLES); end // CSA先完成共享最终加法。
                 end
-                TAIL: begin // 与CSA阵列使用相同的十拍收尾日程。
+                TAIL: begin // 等待CSA阵列固定收尾，普通版本不进入此阶段。
                     if (wait_count==1) state<=STORE; // 下一拍开始连续接收64项。
                     else wait_count<=wait_count-1'b1; // 收尾拍数与数据内容无关。
                 end

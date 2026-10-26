@@ -1,5 +1,6 @@
-// 32×32块阵列逐点回归台；由 hardware/run.py 编译CSA阵列并传入数据文件。
-module tb_kwt_block32;
+// 32×32块阵列逐点回归台；由 hardware/run.py 编译所选阵列版本并传入数据文件。
+module tb_kwt_block32 #(parameter int TAIL_CYCLES=10); // 版本的固定收尾拍数
+
     // 时钟与复位。
     logic clk = 0;
     logic rst_n = 0;
@@ -36,7 +37,7 @@ module tb_kwt_block32;
     int steps=0,last_step_cycle=0; // 验证每个K向量均按固定间隔发射
     int block_start_cycle;          // 任务起点，用于交叉核对状态计数
     localparam int EXPECT_II=1; // 独立调度合同，不读取DUT参数
-    localparam int EXPECT_BLOCK=1024; // 16个8×8子块的约定拍数
+    localparam int EXPECT_BLOCK=(54+TAIL_CYCLES)*16; // 16个8×8子块的约定拍数
 
     // 按实际执行状态计数，并检查相邻K位置的发射间隔，零输入也必须遵守。
     always @(posedge clk) begin
@@ -47,7 +48,7 @@ module tb_kwt_block32;
                 $fatal(1,"row order got=%0d expected=%0d",dut.array_bus.out_row,dut.slot); // 下载每拍递增，不能漏行或重行。
             if (dut.array_bus.step) begin // valid是固定节拍标记，不是反压握手。
                 if (dut.k!=0 && cycle_count-last_step_cycle!=EXPECT_II)
-                    $fatal(1,"issue interval arch=%0d got=%0d expected=%0d",2,cycle_count-last_step_cycle,EXPECT_II);
+                    $fatal(1,"issue interval tail_cycles=%0d got=%0d expected=%0d",TAIL_CYCLES,cycle_count-last_step_cycle,EXPECT_II);
                 last_step_cycle=cycle_count;
                 steps++;
             end
@@ -60,7 +61,7 @@ module tb_kwt_block32;
     always @(posedge clk) if (rst_n && cycle_count > 2000000) $fatal(1, "timeout");
 
     // DUT使用选定架构，端口由测试台驱动并观测。
-    kwt_block32 dut (
+    kwt_block32 #(.TAIL_CYCLES(TAIL_CYCLES)) dut (
         .clk(clk), .rst_n(rst_n),
         .a_load_valid(a_load_valid),.a_load_addr(a_load_addr),.a_load_data(a_load_data),
         .b_load_valid(b_load_valid),.b_load_addr(b_load_addr),.b_load_data(b_load_data),
@@ -146,12 +147,12 @@ module tb_kwt_block32;
             if (done) break;
         end
         if (cycle_count-block_start_cycle!=EXPECT_BLOCK)
-            $fatal(1,"task cycles arch=%0d got=%0d expected=%0d",2,cycle_count-block_start_cycle,EXPECT_BLOCK);
+            $fatal(1,"task cycles tail_cycles=%0d got=%0d expected=%0d",TAIL_CYCLES,cycle_count-block_start_cycle,EXPECT_BLOCK);
         if (phase_cycles[1]!=128 || phase_cycles[6]!=128)
             $fatal(1,"row transfers load=%0d store=%0d expected=128 each",phase_cycles[1],phase_cycles[6]);
         if (steps!=512) $fatal(1,"issue count=%0d expected=512",steps);
-        if (blocks==0) $display("TIMING arch=%0d block=%0d load=%0d run=%0d wait=%0d flush=%0d tail=%0d store=%0d steps=%0d",
-            2,cycle_count-block_start_cycle,phase_cycles[1],phase_cycles[2],phase_cycles[3],phase_cycles[4],phase_cycles[5],phase_cycles[6],steps);
+        if (blocks==0) $display("TIMING tail_cycles=%0d block=%0d load=%0d run=%0d wait=%0d flush=%0d tail=%0d store=%0d steps=%0d",
+            TAIL_CYCLES,cycle_count-block_start_cycle,phase_cycles[1],phase_cycles[2],phase_cycles[3],phase_cycles[4],phase_cycles[5],phase_cycles[6],steps);
         blocks++;
     endtask
 
@@ -237,8 +238,8 @@ module tb_kwt_block32;
                          ((k_len - 1) / 32) * 32);
         if (outputs != m_len * n_len) $fatal(1, "output count=%0d expected=%0d", outputs, m_len*n_len);
         $fclose(output_fd);
-        $display("PASS arch=%0d shape=%0dx%0dx%0d outputs=%0d blocks=%0d cycles=%0d host_writes=%0d A=%0d B=%0d C=%0d gaps=%0d compute_cycles=%0d block_cycles=%0d",
-                 2, m_len, k_len, n_len, outputs, blocks,
+        $display("PASS tail_cycles=%0d shape=%0dx%0dx%0d outputs=%0d blocks=%0d cycles=%0d host_writes=%0d A=%0d B=%0d C=%0d gaps=%0d compute_cycles=%0d block_cycles=%0d",
+                 TAIL_CYCLES, m_len, k_len, n_len, outputs, blocks,
                  cycle_count, a_writes+b_writes+c_writes, a_writes, b_writes, c_writes, gap_count, compute_cycles, EXPECT_BLOCK);
         $finish;
     end

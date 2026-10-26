@@ -1,0 +1,57 @@
+{
+  "version": "normal",
+  "block_cycles": 864,
+  "layer_cycles": 55296,
+  "layer_GOPS_at_150MHz": 8.8,
+  "adder_cycles": 1,
+  "full_regression_cases": 28,
+  "output_checks": 612728,
+  "scopes": {
+    "core": {
+      "area_mm2": 0.18469919999999998,
+      "cells": 84966,
+      "flip_flops": 7303,
+      "worst_setup_slack_ns": 2.784992,
+      "setup_tns_ns": 0.0,
+      "power_estimates": {
+        "0p1": {
+          "internal_W": 0.0157073,
+          "switching_W": 0.001327958,
+          "leakage_W": 0.0003390561,
+          "total_W": 0.01737431
+        },
+        "0p5": {
+          "internal_W": 0.03221219,
+          "switching_W": 0.006640261,
+          "leakage_W": 0.0003390561,
+          "total_W": 0.03919151
+        }
+      },
+      "timing_report": "core/timing.rpt",
+      "area_report": "core/area.json"
+    },
+    "block": {
+      "area_mm2": 0.85146208,
+      "cells": 353412,
+      "flip_flops": 62619,
+      "worst_setup_slack_ns": 2.734381,
+      "setup_tns_ns": 0.0,
+      "power_estimates": {
+        "0p1": {
+          "internal_W": 0.09634968,
+          "switching_W": 0.005150678,
+          "leakage_W": 0.001566624,
+          "total_W": 0.103067
+        },
+        "0p5": {
+          "internal_W": 0.1568172,
+          "switching_W": 0.02575541,
+          "leakage_W": 0.001566624,
+          "total_W": 0.1841393
+        }
+      },
+      "timing_report": "block/timing.rpt",
+      "area_report": "block/area.json"
+    }
+  }
+}
