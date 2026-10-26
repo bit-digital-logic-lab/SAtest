@@ -8,3 +8,5 @@
 - 注释用简短中文：文件作用及关系、模块/函数用途、关键变量和复杂语法。模块端口、枚举项和逻辑块需有中文注释；逐条说明assign含义，if/else分支解释数据流、条件与优先级，always说明流水和更新职责。
 - 清理前全部方案及报告在Git标签 `archive/all-strategies-before-cleanup-20261025`。旧实验在Git标签 `archive/experiments-20261025`，上一轮双版本草稿在 `archive/two-array-draft-20261025`，不擅自push。原始题目、数据、权重保留。
 - 新对话读取 `/home/yang/.codex/skills/quarter-hour-check/SKILL.md`；超过15分钟的任务登记进度和实际结束状态。
+
+- 后续SRAM/调度设计以`hardware/SRAM约束与驻留数据流.md`为准：16bit同步读，SP每拍读写互斥，TP只有1R1W；未明确的冲突保守禁止。旧触发器数组不等于宏，禁止用多路组合读模型冒充SRAM；40LL宏面积/时序不与55nm逻辑报告混作同一PPA。

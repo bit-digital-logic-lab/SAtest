@@ -1,0 +1,79 @@
+{
+  "source": "用户2026-10-26提供的手册摘录；未核验完整厂商模型",
+  "SP": {
+    "depth": 4096,
+    "width": 16,
+    "read_ports": 1,
+    "write_ports": 1,
+    "read_write_same_cycle": false,
+    "area_mm2": 0.027517316800000004,
+    "minimum_period_ns_only_FF_1p1V_0C": 2.354
+  },
+  "TP": {
+    "depth": 1024,
+    "width": 16,
+    "read_ports": 1,
+    "write_ports": 1,
+    "read_write_same_cycle": "只允许符合手册冲突规则的独立读写",
+    "area_mm2": 0.017757843725,
+    "worst_corner_timing": "unknown"
+  },
+  "direct_feed_examples": [
+    {
+      "multipliers_per_pe": 1,
+      "mac_per_cycle": 64,
+      "A_bank_reads_per_cycle": 8,
+      "W_bank_reads_per_cycle": 8,
+      "container_read_bits_per_cycle": 256,
+      "example_macros": {
+        "SP": 8,
+        "TP": 8
+      },
+      "example_macro_area_mm2": 0.36220128420000003
+    },
+    {
+      "multipliers_per_pe": 2,
+      "mac_per_cycle": 128,
+      "A_bank_reads_per_cycle": 16,
+      "W_bank_reads_per_cycle": 16,
+      "container_read_bits_per_cycle": 512,
+      "example_macros": {
+        "SP": 0,
+        "TP": 32
+      },
+      "example_macro_area_mm2": 0.5682509992
+    },
+    {
+      "multipliers_per_pe": 4,
+      "mac_per_cycle": 256,
+      "A_bank_reads_per_cycle": 32,
+      "W_bank_reads_per_cycle": 32,
+      "container_read_bits_per_cycle": 1024,
+      "example_macros": {
+        "SP": 0,
+        "TP": 64
+      },
+      "example_macro_area_mm2": 1.1365019984
+    },
+    {
+      "multipliers_per_pe": 8,
+      "mac_per_cycle": 512,
+      "A_bank_reads_per_cycle": 64,
+      "W_bank_reads_per_cycle": 64,
+      "container_read_bits_per_cycle": 2048,
+      "example_macros": {
+        "SP": 0,
+        "TP": 128
+      },
+      "example_macro_area_mm2": 2.2730039968
+    }
+  ],
+  "output32_one_16bit_port": {
+    "layer_words16": 50688,
+    "cycles_lower_bound": 50688,
+    "time_us_at150MHz": 337.92
+  },
+  "core_or_macro_rtl_changed": false,
+  "existing_PPA_node_nm": 55,
+  "macro_node_nm_user_provided": 40
+}
