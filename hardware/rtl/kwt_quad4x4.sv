@@ -1,5 +1,5 @@
 // 4×4驻留块：A12、W10直接送到16个PE，不经column层；块内管理水平及上下行部分和通道。
-// 部分和从链尾上传，从链首按行下载；所有移位使用PE原累计寄存器，无额外行间寄存器。
+// 部分和从底行上传，从顶行按行下载；所有移位使用PE原累计寄存器，无额外行间寄存器。
 module kwt_quad4x4 (
     input logic clk, rst_n,          // 时钟、低有效复位
     input logic [47:0] a_rows,       // 独立A端口：四个12位行输入
@@ -9,8 +9,8 @@ module kwt_quad4x4 (
     input logic shift,               // 固定下载移位
     input logic row_issue, // CSA本块预定出行拍
     input logic [1:0] row_select, // 共享加法器当前处理行
-    kwt_psum_if.sink block_in,       // 本块链尾输入，来自下一个4×4块
-    kwt_psum_if.source block_out    // 本块链首输出，即第0行第0列原累计值
+    kwt_psum_row_if.sink block_in,       // 本块底行输入，来自下方4×4或外部输入行
+    kwt_psum_row_if.source block_out    // 本块顶行四个原sum寄存器并行输出
 );
     kwt_psum_if pe_out[0:15]();     // 16个原累计寄存器输出，索引=行×4+列
     logic [31:0] carries[0:15]; // CSA每个PE驻留进位
@@ -31,17 +31,17 @@ module kwt_quad4x4 (
             .sums(row_sums),.carries(row_carries),.commit(row_commit),
             .commit_row(commit_row),.results(row_results));
     end
-    assign block_out.data=pe_out[0].data; // 块内行序的第一项，不经过列汇总或影子副本。
+    for (genvar c=0;c<4;c++) begin : output_row // 顶行四列并行排出，不添加输出缓存。
+        assign block_out.data[c*32+:32]=pe_out[c].data; // 直接读取顶行原sum。
+    end
 
     for (genvar r=0;r<4;r++) begin : rows // 按行组织PE，块直接负责所有相邻通道。
         for (genvar c=0;c<4;c++) begin : cells
             kwt_psum_if next_sum(); // 本PE上传/下载共用的后继部分和连线，不新增寄存器
-            if (c<3) begin : horizontal // 同一行内向左推进，右侧寄存器送入当前PE。
-                assign next_sum.data=pe_out[r*4+c+1].data; // 水平相邻PE直接相连。
-            end else if (r<3) begin : vertical // 行尾折到下一行链首，保留上下行通道。
-                assign next_sum.data=pe_out[(r+1)*4].data; // 上下行的折返由4×4块内部管理。
-            end else begin : tail // 最后一行末尾连接下一小块，不在大阵列展开PE通道。
-                assign next_sum.data=block_in.data; // 新上传数据由大阵列从块尾逐项推入。
+            if (r<3) begin : vertical // 同列下一级送上一级，一拍整行前移。
+                assign next_sum.data=pe_out[(r+1)*4+c].data; // 复用下一行同列sum，不横向串行跳转。
+            end else begin : bottom // 最底行连接下一小块或外部输入行。
+                assign next_sum.data=block_in.data[c*32+:32]; // 四列同时注入一整行。
             end
             begin : csa_pe // A/B都直接到达本PE，内部只有乘法→两数驻留压缩。
                 kwt_pe_csa u_pe(.clk(clk),.rst_n(rst_n),

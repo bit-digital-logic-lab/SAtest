@@ -36,13 +36,15 @@ module tb_kwt_block32;
     int steps=0,last_step_cycle=0; // 验证每个K向量均按固定间隔发射
     int block_start_cycle;          // 任务起点，用于交叉核对状态计数
     localparam int EXPECT_II=1; // 独立调度合同，不读取DUT参数
-    localparam int EXPECT_BLOCK=2816; // 16个8×8子块的约定拍数
+    localparam int EXPECT_BLOCK=1024; // 16个8×8子块的约定拍数
 
     // 按实际执行状态计数，并检查相邻K位置的发射间隔，零输入也必须遵守。
     always @(posedge clk) begin
         if (rst_n && busy) begin // 只计任务内部周期，排除主机端的空闲等待。
             phase_cycles[int'(dut.state)]++;
             compute_cycles++;
+            if (dut.state==6 && dut.array_bus.out_row!==dut.slot)
+                $fatal(1,"row order got=%0d expected=%0d",dut.array_bus.out_row,dut.slot); // 下载每拍递增，不能漏行或重行。
             if (dut.array_bus.step) begin // valid是固定节拍标记，不是反压握手。
                 if (dut.k!=0 && cycle_count-last_step_cycle!=EXPECT_II)
                     $fatal(1,"issue interval arch=%0d got=%0d expected=%0d",2,cycle_count-last_step_cycle,EXPECT_II);
@@ -145,6 +147,8 @@ module tb_kwt_block32;
         end
         if (cycle_count-block_start_cycle!=EXPECT_BLOCK)
             $fatal(1,"task cycles arch=%0d got=%0d expected=%0d",2,cycle_count-block_start_cycle,EXPECT_BLOCK);
+        if (phase_cycles[1]!=128 || phase_cycles[6]!=128)
+            $fatal(1,"row transfers load=%0d store=%0d expected=128 each",phase_cycles[1],phase_cycles[6]);
         if (steps!=512) $fatal(1,"issue count=%0d expected=512",steps);
         if (blocks==0) $display("TIMING arch=%0d block=%0d load=%0d run=%0d wait=%0d flush=%0d tail=%0d store=%0d steps=%0d",
             2,cycle_count-block_start_cycle,phase_cycles[1],phase_cycles[2],phase_cycles[3],phase_cycles[4],phase_cycles[5],phase_cycles[6],steps);
